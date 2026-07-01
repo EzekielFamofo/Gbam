@@ -2,20 +2,29 @@ import { createCliRenderer, } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { Header } from "./components/header";
 import { InputBar } from "./components/input-bar";
+import { ToastProvider } from "./components/providers/toast";
+import { KeyboardLayerProvider } from "./components/providers/keyboard-layer";
+import { DialogProvider } from "./components/providers/dialog";
 
-function App() {
+function App() {// Wraps the full App in the toast provider to allow toast to be shown,  the dialog Provider too, the KeyboardLayer provider to regulate the layer affect by the keyboard
   return (
-    <box alignItems="center" justifyContent="center" backgroundColor="#0D0D12" width="100%" height="100%" gap={2}>
-        <Header />
-        <box width="100%" maxWidth={78} paddingX={2}>
-          <InputBar onSubmit={() => {}}/>
-        </box>
-    </box>
+    <KeyboardLayerProvider>
+      <DialogProvider>
+        <ToastProvider>
+          <box alignItems="center" justifyContent="center" backgroundColor="#0D0D12" width="100%" height="100%" gap={2}>
+              <Header />
+              <box width="100%" maxWidth={78} paddingX={2}>
+                <InputBar onSubmit={() => {}}/>
+              </box>
+          </box>
+        </ToastProvider>
+      </DialogProvider>
+    </KeyboardLayerProvider>
   );
 }
 
 const renderer = await createCliRenderer({
   targetFps: 60,
-  exitOnCtrlC: false,
+  exitOnCtrlC: false,// doesnt close application on ctrl C yet
 });
 createRoot(renderer).render(<App />);
