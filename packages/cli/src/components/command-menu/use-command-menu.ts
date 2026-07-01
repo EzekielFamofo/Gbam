@@ -3,6 +3,7 @@ import { useMemo, useRef, useState, type RefObject } from "react";
 import type { Command } from "./type";
 import { getFilteredCommands } from "./filter-commands";
 import { useKeyboard } from "@opentui/react";
+import { useKeyboardLayer } from "../providers/keyboard-layer";
 
 type UseCommandMenuReturn = { // Because I am using typescript have to define attributes for new consts or 'variables' that we use
     showCommandMenu: boolean;
@@ -19,6 +20,7 @@ export function useCommandMenu(): UseCommandMenuReturn {
     const [selectedIndex, setSelectedIndex] = useState(0);// tracks what the user is hovering over
     const [showCommandMenu, setShowCommandMenu] = useState(false);// sets whether command menu component should be shown
     const scrollRef = useRef<ScrollBoxRenderable>(null);
+    const  {push, pop, isTopLayer} = useKeyboardLayer();
 
     const commandQuery = showCommandMenu && textValue.startsWith("/") ? textValue.slice(1) :""; //tracks what the user typed after /, show command menu must be true and usser input must start with / then it would extract what comes after the / if  not just show ""
 
@@ -37,8 +39,14 @@ export function useCommandMenu(): UseCommandMenuReturn {
         const prefix = text.startsWith("/") ? text.slice(1) : null; //checks if it starts with /, if so does like the above commandquery
         if (prefix !== null && !prefix.includes(" ")) {
             setShowCommandMenu(true);
+            push("command", () => {// puts it to the top layer
+                setShowCommandMenu(false);
+                pop("command") // removes from the array
+                return true;
+            });
         } else {
             setShowCommandMenu(false);
+            pop("command")
         }
     };
     // Resolve a command at a specific index ( returns the command, caller hanles executing)
@@ -46,17 +54,19 @@ export function useCommandMenu(): UseCommandMenuReturn {
         const command = filteredCommands[index];
         if (command) {
             setShowCommandMenu(false);
+            pop("command");
         }
         return command;
     };
 
     // Arrow keys move selection; the list follows along when the highlight goes off-screen
     useKeyboard((key) => {
-        if(!showCommandMenu) return;
+        if(!showCommandMenu || !isTopLayer("command")) return;// does not register the escape key if command menu is not top layer
 
         if (key.name === "escape") {
             key.preventDefault();
             setShowCommandMenu(false);
+            pop("command");
         } else if (key.name === "up") {
             key.preventDefault();
             setSelectedIndex((i: number) => {
