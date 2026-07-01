@@ -76,7 +76,7 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
         } else {//if it doesnt have an action insert command and add a blank space
             textarea.insertText(command.value + " ")
         }
-    }, [renderer, toast ]);
+    }, [renderer, toast, dialog ]);
 
     const handleCommandExecute = useCallback ( // executes the command when necessary 
         (index: number) => {
