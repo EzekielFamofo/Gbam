@@ -9,6 +9,8 @@
     "dev:server": " bun run --hot packages/server/src/index.ts"
   },
   "dependencies": {
+    "@sentry/bun": "^10.63.0",
+    "@sentry/hono": "^10.63.0",
     "hono": "^4.12.27",
     "react": "19.2.7"
   },
