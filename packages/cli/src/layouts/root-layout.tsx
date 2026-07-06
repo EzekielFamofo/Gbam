@@ -1,7 +1,7 @@
 import { Outlet } from "react-router";
-import { DialogProvider } from "../components/providers/dialog";
-import { KeyboardLayerProvider } from "../components/providers/keyboard-layer";
-import { ToastProvider } from "../components/providers/toast";
+import { DialogProvider } from "../providers/dialog";
+import { KeyboardLayerProvider } from "../providers/keyboard-layer";
+import { ToastProvider } from "../providers/toast";
 import { useTerminalDimensions } from "@opentui/react";
 
 

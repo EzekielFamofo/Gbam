@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
       "jsx": "react-jsx", 
-      "jsxImportSource" : "@opentui/react"
-
-  }
-}
+      "jsxImportSource" : "@opentui/react",
+      "ignoreDeprecations": "6.0",
+      "baseUrl": ".",
+      "paths": {
+        "@nightcode/server": ["../server/src/index.ts"]
+    }
+  }  
+} 

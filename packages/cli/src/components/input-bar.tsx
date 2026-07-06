@@ -5,9 +5,9 @@ import { useCallback, useEffect, useRef } from "react";
 import { useRenderer } from "@opentui/react";
 import { useCommandMenu } from "./command-menu/use-command-menu";
 import type {Command} from "./command-menu/type";
-import { useToast } from "./providers/toast";
-import { useKeyboardLayer } from "./providers/keyboard-layer";
-import { useDialog } from "./providers/dialog";
+import { useToast } from "../providers/toast";
+import { useKeyboardLayer } from "../providers/keyboard-layer";
+import { useDialog } from "../providers/dialog";
 type Props = {
     onSubmit: (text: string) => void;
     disabled?: boolean;

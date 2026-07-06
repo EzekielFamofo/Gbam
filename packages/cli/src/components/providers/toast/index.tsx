@@ -47,9 +47,7 @@ export function ToastProvider({children}: ToastProviderProps) {
         }, duration).unref();
     }, [clearCurrentTimeout]);
 
-    const value: ToastContextValue ={
-        show,
-    };
+    const value: u
 
     return ( // wraps the entire code so as to allow the toast context to be called  in any child component in the application
         <ToastContext.Provider value={value}>

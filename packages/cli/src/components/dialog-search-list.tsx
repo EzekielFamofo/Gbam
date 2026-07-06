@@ -1,6 +1,6 @@
 import { InputRenderable, ScrollBoxRenderable, TextAttributes } from "@opentui/core";
 import { useCallback, useRef, useState, type ReactNode } from "react";
-import { useKeyboardLayer } from "./providers/keyboard-layer";
+import { useKeyboardLayer } from "../providers/keyboard-layer";
 import { useKeyboard } from "@opentui/react";
 
 const MAX_VISIBLE_ITEMS = 6;
