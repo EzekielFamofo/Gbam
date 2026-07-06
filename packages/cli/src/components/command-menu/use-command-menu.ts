@@ -3,7 +3,7 @@ import { useMemo, useRef, useState, type RefObject } from "react";
 import type { Command } from "./type";
 import { getFilteredCommands } from "./filter-commands";
 import { useKeyboard } from "@opentui/react";
-import { useKeyboardLayer } from "../providers/keyboard-layer";
+import { useKeyboardLayer } from "../../providers/keyboard-layer";
 
 type UseCommandMenuReturn = { // Because I am using typescript have to define attributes for new consts or 'variables' that we use
     showCommandMenu: boolean;
