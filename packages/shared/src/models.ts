@@ -3,73 +3,57 @@ export type ModelPricing = {
     outputUsdPerMillionTokens: number;
 };
 
-export type SupportedProvider = "anthropic" | "openai";// Types of ais supported can be expanded later
+// 1. Updated the provider type to focus on the active platforms
+export type SupportedProvider = "google" | "qwen" | "poolside";
 
-type SupportedChatModelDefinition = { // just defining the types for supportedchatmodeldefinition
+type SupportedChatModelDefinition = {
     id: string;
     provider: SupportedProvider;
     pricing: ModelPricing;
 };
 
 export const SUPPORTED_CHAT_MODELS = [
+    // 2. Google Gemini Models
     {
-        id: "claude-sonnet-4-6",
-        provider: "anthropic",
+        id: "gemini-2.5-flash",
+        provider: "google",
         pricing: {
-            inputUsdPerMillionTokens: 3,
-            outputUsdPerMillionTokens: 15,
+            inputUsdPerMillionTokens: 0.15,
+            outputUsdPerMillionTokens: 0.60,
         },
     },
-        {
-        id: "claude-haiku-4-5",
-        provider: "anthropic",
+    {
+        id: "gemini-2.5-pro",
+        provider: "google",
         pricing: {
-            inputUsdPerMillionTokens: 1,
-            outputUsdPerMillionTokens: 5,
+            inputUsdPerMillionTokens: 1.25,
+            outputUsdPerMillionTokens: 10.00,
         },
     },
-        {
-        id: "claude-opus-4-6",
-        provider: "anthropic",
+    // 3. Free Coding Models (via OpenRouter)
+    {
+        id: "qwen/qwen3-coder:free",
+        provider: "qwen",
         pricing: {
-            inputUsdPerMillionTokens: 5,
-            outputUsdPerMillionTokens: 25,
+            inputUsdPerMillionTokens: 0, 
+            outputUsdPerMillionTokens: 0,
         },
     },
-        {
-        id: "gpt-5.4",
-        provider: "openai",
+    {
+        id: "poolside/laguna-m.1:free",
+        provider: "poolside",
         pricing: {
-            inputUsdPerMillionTokens: 2.5,
-            outputUsdPerMillionTokens: 15,
-        },
-    },
-        {
-        id: "gpt-5.4-mini",
-        provider: "openai",
-        pricing: {
-            inputUsdPerMillionTokens: 0.75,
-            outputUsdPerMillionTokens: 4.5,
-        },
-    },
-        {
-        id: "gpt-5.4-nano",
-        provider: "openai",
-        pricing: {
-            inputUsdPerMillionTokens: 0.2,
-            outputUsdPerMillionTokens: 1.25,
+            inputUsdPerMillionTokens: 0,
+            outputUsdPerMillionTokens: 0,
         },
     },
 ] as const satisfies readonly SupportedChatModelDefinition[];
 
-export type SupportedChatModel = (typeof SUPPORTED_CHAT_MODELS) [number];
-
+export type SupportedChatModel = (typeof SUPPORTED_CHAT_MODELS)[number];
 export type SupportedChatModelId = SupportedChatModel["id"];
 
-export function findSupportedChatModel (modelId: string ) {
+export function findSupportedChatModel(modelId: string) {
     return SUPPORTED_CHAT_MODELS.find((model) => model.id === modelId);
 }
 
-
-export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "claude-opus-4-6";
-
+export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "gemini-2.5-flash";
