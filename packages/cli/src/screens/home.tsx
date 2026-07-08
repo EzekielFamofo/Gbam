@@ -16,7 +16,7 @@ export function Home() {
     );
 // position="absolute" left={0} top={0} width={dimensions.width} height={dimensions.height} flexDirection="column"
     return (
-        <box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1} gap={2} position="relative" width="100%" height="100%" backgroundColor="#1A1A24">
+        <box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1} gap={2} position="relative" width="100%" height="100%" backgroundColor="#000000">
             <Header />
             <box width="100%" maxWidth={78} padding={2}>
                 <InputBar onSubmit={handleSubmit} />
