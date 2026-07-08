@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import { InputBar } from "./input-bar";
 import { TextAttributes } from "@opentui/core";
 import { Spinner } from "./spinner";
+import { usePromptConfig } from "src/providers/prompt-config";
 // This is going to be ui component for the session path
 type Props = {// defining the types for the properties of the function
     children?: ReactNode;
@@ -12,6 +13,8 @@ type Props = {// defining the types for the properties of the function
 };
 
 export function SessionShell ({children, onSubmit, inputDisabled = false, loading = false, interruptible = false}: Props) {
+    const { mode } = usePromptConfig();
+    
     return (
         <box flexDirection="column" flexGrow={1} width="100%" height ="100%" paddingY={1} paddingX={2} gap={1} backgroundColor="#040404"> 
             <scrollbox flexGrow={1} width="100%" stickyScroll stickyStart="bottom">
@@ -24,7 +27,7 @@ export function SessionShell ({children, onSubmit, inputDisabled = false, loadin
                 <box flexDirection="row" alignItems="center" gap={2}>
                     {loading ? (
                     <>
-                        <Spinner  /> 
+                        <Spinner mode={mode}  /> 
                         {interruptible ? <text>esc to interrupt</text> : null}
                     </>
                     ) : null }

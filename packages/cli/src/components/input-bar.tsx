@@ -2,12 +2,15 @@ import { TextareaRenderable, type KeyBinding } from "@opentui/core";
 import { StatusBar } from "./status-bar";
 import { CommandMenu } from "./command-menu";
 import { useCallback, useEffect, useRef } from "react";
-import { useRenderer } from "@opentui/react";
+import { useKeyboard, useRenderer } from "@opentui/react";
 import { useCommandMenu } from "./command-menu/use-command-menu";
 import type {Command} from "./command-menu/type";
 import { useToast } from "../providers/toast";
 import { useKeyboardLayer } from "../providers/keyboard-layer";
 import { useDialog } from "../providers/dialog";
+import { useNavigate } from "react-router";
+import { usePromptConfig } from "src/providers/prompt-config";
+import { Mode } from "@nightcode/database/enums";
 type Props = {
     onSubmit: (text: string) => void;
     disabled?: boolean;
@@ -22,8 +25,10 @@ export const TEXTAREA_KEY_BINDINGS: KeyBinding[] = [  // defines what keys do, h
 ];
 
 export function InputBar ({onSubmit, disabled = false}: Props) { 
+    const { mode, toggleMode, setMode, setModel } = usePromptConfig();
     const textareaRef = useRef<TextareaRenderable>(null);
     const onSubmitRef = useRef<() =>void>(() => {});
+    const navigate = useNavigate()
     const renderer = useRenderer();
     const toast = useToast();
     const dialog = useDialog();
@@ -71,12 +76,15 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
                 exit: () => renderer.destroy(),
                 toast,
                 dialog,
-
+                navigate,
+                mode,
+                setMode,
+                setModel,
             });
         } else {//if it doesnt have an action insert command and add a blank space
             textarea.insertText(command.value + " ")
         }
-    }, [renderer, toast, dialog ]);
+    }, [renderer, toast, dialog, navigate, mode, setMode, setModel]);
 
     const handleCommandExecute = useCallback ( // executes the command when necessary 
         (index: number) => {
@@ -106,6 +114,16 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
         }
         handleSubmit();// if its not open it will submit the text
     };
+
+    useKeyboard((key) => {
+        if(disabled) return;
+        if (!isTopLayer("base")) return;
+        if (key.name === "tab") {
+            key.preventDefault();
+            toggleMode();
+        }
+    });
+
     //Register the base layer responder for ctrl c dismissal
     useEffect(() => {
         setResponder("base", ()=> {
@@ -125,7 +143,7 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
 
     return ( // Here we run Command menu we have to pass on the attributes required by the component as defined in its file like query 
         <box width="100%" justifyContent="center">
-            <box border={["left"]} borderColor="cyan">
+            <box border={["left"]} borderColor={mode === Mode.BUILD ? "blue" : "cyan"}>
                 <box position="relative" justifyContent="center" paddingX={2} paddingY={1} backgroundColor="#1A1A24" width="100%" gap={1}>
                     {showCommandMenu && (// here is where it would only showw command menu when showwommandmenu is true
                         <box position="absolute" bottom="100%" left={0} width="100%" backgroundColor="#1A1A24" zIndex={10}>
