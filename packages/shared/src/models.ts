@@ -22,14 +22,6 @@ export const SUPPORTED_CHAT_MODELS = [
             outputUsdPerMillionTokens: 0.60,
         },
     },
-    {
-        id: "gemini-2.5-pro",
-        provider: "google",
-        pricing: {
-            inputUsdPerMillionTokens: 1.25,
-            outputUsdPerMillionTokens: 10.00,
-        },
-    },
     // 3. Free Coding Models (via OpenRouter)
     {
         id: "qwen/qwen3-coder:free",
@@ -56,4 +48,4 @@ export function findSupportedChatModel(modelId: string) {
     return SUPPORTED_CHAT_MODELS.find((model) => model.id === modelId);
 }
 
-export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "gemini-2.5-flash";
+export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "poolside/laguna-m.1:free";
