@@ -1,5 +1,6 @@
 import { google } from '@ai-sdk/google';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import type { ProviderOptions } from "@ai-sdk/provider-utils"
 
 import {
     findSupportedChatModel,
@@ -19,6 +20,39 @@ export type ResolvedModel = {
     model: LanguageModel;
     provider: SupportedProvider;
     modelId: SupportedChatModelId;
+    providerOptions?: ProviderOptions;
+};
+
+export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, ProviderOptions>> = {
+    "gemini-2.5-flash": {
+        google: {
+            thinkingConfig: {
+                thinkingBudget: 0,      
+                includeThoughts: false,
+            }
+        }
+    },
+
+    "qwen/qwen3-coder:free": {
+        openrouter: {
+            extraBody: {
+                reasoning: {
+                    enabled: true,
+                    effort: "high"      
+                }
+            }
+        }
+    },
+    "poolside/laguna-m.1:free": {
+        openrouter: {
+            extraBody: {
+                reasoning: {
+                    enabled: true,
+                    max_tokens: 4096    
+                }
+            }
+        }
+    }
 };
 
 
@@ -36,6 +70,7 @@ function resolveGeminiModel(modelId: GeminiModelId): ResolvedModel {
         model: google(modelId),
         provider: "google",
         modelId,
+        providerOptions: MODEL_PROVIDER_OPTIONS[modelId],
     };
 }
 
@@ -44,6 +79,7 @@ function resolveQwenModel(modelId: QwenModelId): ResolvedModel {
         model: openrouter(modelId),
         provider: "qwen",
         modelId,
+        providerOptions: MODEL_PROVIDER_OPTIONS[modelId],
     };
 }
 
@@ -52,6 +88,7 @@ function resolvePoolsideModel(modelId: PoolsideModelId): ResolvedModel {
         model: openrouter(modelId),
         provider: "poolside",
         modelId,
+        providerOptions: MODEL_PROVIDER_OPTIONS[modelId],
     };
 }
 
