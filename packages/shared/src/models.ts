@@ -41,16 +41,16 @@ export const SUPPORTED_CHAT_MODELS = [
         id: "qwen/qwen3-coder:free",
         provider: "qwen",
         pricing: {
-            inputUsdPerMillionTokens: 0, 
-            outputUsdPerMillionTokens: 0,
+            inputUsdPerMillionTokens: 1, 
+            outputUsdPerMillionTokens: 2,
         },
     },
     {
         id: "poolside/laguna-m.1:free",
         provider: "poolside",
         pricing: {
-            inputUsdPerMillionTokens: 0,
-            outputUsdPerMillionTokens: 0,
+            inputUsdPerMillionTokens: 1,
+            outputUsdPerMillionTokens: 2,
         },
     },
 ] as const satisfies readonly SupportedChatModelDefinition[];

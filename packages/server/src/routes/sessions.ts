@@ -2,12 +2,12 @@ import { zValidator } from "@hono/zod-validator";
 import { db } from "@nightcode/database/client";
 import * as Sentry from "@sentry/hono/bun";
 import { Role, Mode, MessageStatus } from "@nightcode/database/enums";
-import { findSupportedChatModel } from "@nightcode/shared";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import z from "zod";
 import { AuthenticatedEnv } from "../middleware/require-auth";
-
+import { requireCreditsBalance } from "../middleware/require-credits-balance"
+import { isSupportedChatModel } from "../lib/models";
 
 
 const createSessionSchema = z.object({
@@ -17,7 +17,7 @@ const createSessionSchema = z.object({
         role: z.enum(Role),
         content: z.string(),
         mode: z.enum(Mode),
-        model: z.string().refine((id) => !!findSupportedChatModel(id), "Unsupported model"),// this would return the message if the user selects a model that is not supported
+        model: z.string().refine(isSupportedChatModel, "Unsupported model"),// this would return the message if the user selects a model that is not supported
     })
     .optional()
 });
@@ -88,7 +88,7 @@ const app = new Hono<AuthenticatedEnv>()
 
         return c.json(session);
     })
-    .post("/", createSessionValidator, async (c) =>{
+    .post("/",requireCreditsBalance, createSessionValidator, async (c) =>{
         //await new Promise((r) => setTimeout(r, 5000))
 
         //throw new HTTPException (
