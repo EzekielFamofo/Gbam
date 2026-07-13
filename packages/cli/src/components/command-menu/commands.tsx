@@ -1,6 +1,8 @@
 import { SUPPORTED_CHAT_MODELS } from "@nightcode/shared";
 import { SessionsDialogContent, AgentsDialogContent, ModelsDialogContent } from "../dialogs";
 import type {Command} from "./type"
+import { performLogin } from "src/lib/oauth";
+import { clearAuth } from "src/lib/auth";
 // defines the commands shown and their action, name and description are used in index.tsx
 
 
@@ -51,8 +53,19 @@ export const COMMANDS: Command[] = [
         name: "login",
         description: "Sign in with your browser",
         value: "/login",
-        action: (ctx) => {
-            ctx.toast.show({message: "Opening browser to sign in..."})
+        action: async (ctx) => {
+            ctx.toast.show({message: "Opening browser to sign in..."});
+
+            try {
+                await performLogin();
+                ctx.toast.show({ variant: "success", message: "Signed in " });
+            } catch (error) {
+                const message = error instanceof Error
+                    ? error.message
+                    : "Sign in failed or timed out";
+
+                ctx.toast.show({ variant: "error", message });
+            }
         },
     },
         {
@@ -60,6 +73,7 @@ export const COMMANDS: Command[] = [
         description: "Sign out with your browser",
         value: "/logout",
         action: (ctx) => {
+            clearAuth();
             ctx.toast.show({message: "Signed out..."})
         },
     },
