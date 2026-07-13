@@ -24,10 +24,26 @@ export type ResolvedModel = {
 };
 
 export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, ProviderOptions>> = {
-    "gemini-2.5-flash": {
+    "gemini-3.5-flash": {
+        google: {
+            thinkingConfihg: {
+                thinkingBudget: 0,
+                includeToughts: false,
+            }
+        }
+    },
+    "gemini-3-flash-preview": {
         google: {
             thinkingConfig: {
-                thinkingBudget: 0,      
+                thinkingLevel: "minimal",
+                includeThoughts: false,
+            }
+        }
+    },
+    "gemini-3.1-flash-lite": {
+        google: {
+            thinkingConfig: {
+                thinkingLevel: "minimal",
                 includeThoughts: false,
             }
         }

@@ -13,16 +13,30 @@ type SupportedChatModelDefinition = {
 };
 
 export const SUPPORTED_CHAT_MODELS = [
-    // 2. Google Gemini Models
     {
-        id: "gemini-2.5-flash",
+        id: "gemini-3.5-flash",
         provider: "google",
         pricing: {
             inputUsdPerMillionTokens: 0.15,
             outputUsdPerMillionTokens: 0.60,
         },
     },
-    // 3. Free Coding Models (via OpenRouter)
+    {
+        id: "gemini-3-flash-preview",
+        provider: "google",
+        pricing: {
+            inputUsdPerMillionTokens: 0.50,
+            outputUsdPerMillionTokens: 3.00,
+        },
+    },
+    {
+        id: "gemini-3.1-flash-lite",
+        provider: "google",
+        pricing: {
+            inputUsdPerMillionTokens: 0.25,
+            outputUsdPerMillionTokens: 1.50,
+        },
+    },
     {
         id: "qwen/qwen3-coder:free",
         provider: "qwen",
