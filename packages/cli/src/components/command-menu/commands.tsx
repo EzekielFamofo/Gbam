@@ -3,6 +3,7 @@ import { SessionsDialogContent, AgentsDialogContent, ModelsDialogContent } from 
 import type {Command} from "./type"
 import { performLogin } from "src/lib/oauth";
 import { clearAuth } from "src/lib/auth";
+import { openBillingPortal, openUpgradeCheckout } from "src/lib/upgrade";
 // defines the commands shown and their action, name and description are used in index.tsx
 
 
@@ -81,16 +82,38 @@ export const COMMANDS: Command[] = [
         name: "upgrade",
         description: "Buy more credits",
         value: "/upgrade",
-        action: (ctx) => {
-            ctx.toast.show({message: "Opening credits checkout..."})
+        action: async (ctx) => {
+            ctx.toast.show({message: "Opening credits checkout..."});
+
+            try {
+                await openUpgradeCheckout();
+                ctx.toast.show({
+                    variant: "success",
+                    message: "Checkout opened in browser",
+                });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : "Failed to open checkout";
+                ctx.toast.show({ variant: "error", message});
+            }
         },
     },
     {
         name: "usage",
         description: "Open billing portal in your browser",
         value: "/usage",
-        action: (ctx) => {
-            ctx.toast.show({message: "Opening billing portal..."})
+        action: async (ctx) => {
+            ctx.toast.show({message: "Opening billing portal..."});
+
+            try {
+                await openBillingPortal();
+                ctx.toast.show({
+                    variant: "success",
+                    message: "Billing portal opened in browser",
+                });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : "Failed to open billing portal";
+                ctx.toast.show({ variant: "error", message});
+            }
         },
     },
     {

@@ -16,6 +16,7 @@
     "@nightcode/database": "workspace:*",
     "@nightcode/shared": "workspace:*",
     "@openrouter/ai-sdk-provider": "^2.10.0",
+    "@polar-sh/sdk": "^0.48.1",
     "@sentry/bun": "^10.63.0",
     "@sentry/hono": "^10.63.0",
     "ai": "^7.0.15",
