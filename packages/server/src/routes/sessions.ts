@@ -1,25 +1,16 @@
 import { zValidator } from "@hono/zod-validator";
 import { db } from "@nightcode/database/client";
 import * as Sentry from "@sentry/hono/bun";
-import { Role, Mode, MessageStatus } from "@nightcode/database/enums";
 import { Hono } from "hono";
-import { HTTPException } from "hono/http-exception";
 import z from "zod";
+
+
 import { AuthenticatedEnv } from "../middleware/require-auth";
 import { requireCreditsBalance } from "../middleware/require-credits-balance"
-import { isSupportedChatModel } from "../lib/models";
 
 
 const createSessionSchema = z.object({
     title: z.string(),
-    cwd: z.string().optional(),
-    initialMessage: z.object({
-        role: z.enum(Role),
-        content: z.string(),
-        mode: z.enum(Mode),
-        model: z.string().refine(isSupportedChatModel, "Unsupported model"),// this would return the message if the user selects a model that is not supported
-    })
-    .optional()
 });
 
 const createSessionValidator = zValidator(
@@ -68,23 +59,11 @@ const app = new Hono<AuthenticatedEnv>()
 
         const session = await db.session.findUnique({
             where: { id, userId },
-            include: {
-                messages: {orderBy: {createdAt: "asc"}},
-            },
         });
 
         if(!session) {
-        Sentry.logger.warn("Session not found", {
-            sessionId: id,
-            userId: "mock-user",
-        });
-
             return c.json({error: "Session not found"}, 404);
         }
-        Sentry.logger.info("Loaded session", {
-            sessionId: id,
-            messageCount: session.messages.length,
-        });
 
         return c.json(session);
     })
@@ -97,22 +76,13 @@ const app = new Hono<AuthenticatedEnv>()
         //)
     
         const userId = c.get("userId")
-        const { initialMessage, ...data} = c.req.valid("json");
+        const data = c.req.valid("json");
 
         const session = await db.session.create({
             data: {
                 ...data,
                 userId,
-                ...(initialMessage && {
-                    messages: {
-                        create: {
-                            ...initialMessage,
-                            status: MessageStatus.COMPLETE,
-                        },
-                    },
-                })
             },
-            include: { messages: true },
         });
 
         return c.json(session, 201);

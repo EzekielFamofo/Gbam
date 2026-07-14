@@ -6,12 +6,12 @@ import z from "zod";
 import { useToast } from "src/providers/toast";
 import { apiClient } from "src/lib/api-client";
 import { getErrorMessage } from "src/lib/htttp-errors";
-import { Mode } from "@nightcode/database/enums";
+import { Mode, modeSchema } from "@nightcode/shared";
 // This component is going to be the default view anytime a new session is created 
 
 const newSessionStateSchema = z.object({
     message: z.string(),
-    mode: z.enum(Mode),
+    mode: modeSchema,
     model: z.string(),
 });
 
@@ -49,13 +49,6 @@ export function NewSession() {
                     // we are doing this to ensure the user doesnt wait at the homepage when a new session is created(while the backend is working) and instead is redirected to a new session where they wait there
                     json: {
                         title: Array.from(state.message).slice(0, 100).join(""),
-                        cwd: process.cwd(),
-                        initialMessage: {
-                            role: "USER",
-                            content: state.message,
-                            mode: state.mode,
-                            model: state.model,
-                        },
                     }
                 });
 
@@ -66,7 +59,7 @@ export function NewSession() {
                 const session = await res.json();
                 navigate(
                     `/sessions/${session.id}`,
-                    { replace: true, state: {session}}
+                    { replace: true, state: {session, initialPrompt: state}}
                 )
 
             } catch  (error){

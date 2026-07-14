@@ -1,11 +1,11 @@
-import{ Polar } from "@polar-sh/sdk"
+import { Polar } from "@polar-sh/sdk"
 
 type PolarServer = "sandbox" | "production";
 
-function getRequiredEnv(name:string) {
+function getRequiredEnv(name: string) {
     const value = process.env[name];
     if (!value) {
-        throw new Error(`${name} environment variableis required`);
+        throw new Error(`${name} environment variable is required`);
     }
     return value;
 }
@@ -29,7 +29,7 @@ export function getPolarServer(): PolarServer {
     }
 
     if (server !== "sandbox" && server !== "production") {
-        throw new Error("POLAR_SERVER must be either 'sanbox' or 'production' ")
+        throw new Error("POLAR_SERVER must be either 'sandbox' or 'production'")
     }
 
     return server;
@@ -45,7 +45,7 @@ function hasStatusCode(error: unknown): error is { statusCode: number } {
         typeof error === "object" &&
         error !== null &&
         "statusCode" in error &&
-        typeof error.statusCode === "number"
+        typeof (error as Record<string, unknown>).statusCode === "number"
     );
 }
 
@@ -54,7 +54,7 @@ type CreateCheckoutUrlParams = {
     requestUrl: string
 }
 
-export async function createCheckoutUrl({ customerExternalId, requestUrl, }: CreateCheckoutUrlParams) {
+export async function createCheckoutUrl({ customerExternalId, requestUrl }: CreateCheckoutUrlParams) {
     const result = await polar.checkouts.create({
         products: [getPolarProductId()],
         successUrl: new URL("/billing/success", requestUrl).toString(),
@@ -65,10 +65,10 @@ export async function createCheckoutUrl({ customerExternalId, requestUrl, }: Cre
     return result.url;
 }
 
-export async function createCustomerPortalUrl({ customerExternalId, requestUrl, }: CreateCheckoutUrlParams) {
+export async function createCustomerPortalUrl({ customerExternalId, requestUrl }: CreateCheckoutUrlParams) {
     const result = await polar.customerSessions.create({
         externalCustomerId: customerExternalId,
-        returnUrl:  new URL("/billing/success", requestUrl).toString(),
+        returnUrl: new URL("/billing/success", requestUrl).toString(),
     });
 
     return result.customerPortalUrl;
@@ -105,7 +105,7 @@ type IngestAiUsageParams = {
     credits: number;
 };
 
-export async function IngestAiUsage({ externalCustomerId, eventId, credits}: IngestAiUsageParams) {
+export async function IngestAiUsage({ externalCustomerId, eventId, credits }: IngestAiUsageParams) {
     if (credits <= 0) {
         return;
     }

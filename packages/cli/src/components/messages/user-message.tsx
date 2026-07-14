@@ -1,9 +1,9 @@
-import { Mode } from "@nightcode/database/enums";
+import { Mode, type ModeType } from "@nightcode/shared";
 
 // Component in AI conversation with user
 type Props ={
     message:string;
-    mode: Mode;
+    mode: ModeType;
 }
 
 
