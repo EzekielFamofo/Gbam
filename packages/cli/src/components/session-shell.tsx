@@ -18,7 +18,7 @@ export function SessionShell ({children, onSubmit, inputDisabled = false, loadin
     return (
         <box flexDirection="column" flexGrow={1} width="100%" height ="100%" paddingY={1} paddingX={2} gap={1} backgroundColor="#040404"> 
             <scrollbox flexGrow={1} width="100%" stickyScroll stickyStart="bottom">
-                <box gap={1}>{children}</box>
+                <box>{children}</box>
             </scrollbox>
             <box flexShrink={0}>
                 <InputBar onSubmit={onSubmit} disabled={inputDisabled} />

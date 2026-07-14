@@ -1,8 +1,8 @@
-import { Mode } from "@nightcode/database/enums";
+import { Mode, type ModeType } from "@nightcode/shared";
 import "opentui-spinner/react"
 
 type Props = {
-    mode?: Mode; 
+    mode?: ModeType; 
 }
 
 export function Spinner({ mode = Mode.BUILD }: Props) {

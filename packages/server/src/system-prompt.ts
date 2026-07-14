@@ -1,12 +1,10 @@
-import type { Mode } from "@nightcode/database/enums";
+import type { ModeType } from "@nightcode/shared";
 
 type SystemPromptParams = {
-  cwd: string | null;
-  mode: Mode;
+  mode: ModeType;
 };
 
 export function buildSystemPrompt({ 
-  cwd,
   mode
 }: SystemPromptParams): string {
   const parts: string[] = [];

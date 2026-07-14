@@ -1,15 +1,19 @@
-import { Mode } from "@nightcode/database/enums";
+import { Mode, type ModeType } from "@nightcode/shared";
 import { Text, TextAttributes } from "@opentui/core";
-import type { ClientMessagePart, ClientToolCallPart } from "src/hooks/use-chat";
+import type { Message } from "src/hooks/use-chat";
+import prettyMs from "pretty-ms";
+
+type ClientMessagePart = Message["parts"][number];
+type ToolPart = Extract<ClientMessagePart, { type: `tool-${string}` | "dynamic-tool" }>;
+
 
 // Component in AI conversation with user
 type Props = {
     parts: ClientMessagePart[];
     model: string;
-    mode: Mode;
-    duration?: string;
+    mode: ModeType;
+    durationMs?: number;
     streaming?: boolean;
-    interrupted?: boolean;
 };
 
 function formatToolName(name: string): string {
@@ -18,8 +22,14 @@ function formatToolName(name: string): string {
         .replace(/^./, (c) => c.toUpperCase());
 }
 
-function formatToolArgs(tc: ClientToolCallPart): string {
-    return Object.values(tc.args).map(String).join("");
+function isToolPart(part: ClientMessagePart): part is ToolPart {
+    return part.type === "dynamic-tool" || part.type.startsWith("tool-")
+};
+
+function formatToolArgs(tc: ToolPart): string {
+    if (!("input" in tc) || tc.input == null) return "";
+    if (typeof tc.input !== "object") return String(tc.input)
+    return Object.values(tc.input).map(String).join("");
 }
 
 type PartGroup = {
@@ -38,87 +48,103 @@ function groupConsecutiveParts(parts: ClientMessagePart[]): PartGroup[] {
             lastGroup.parts.push(part);
         } else {
             const key =
-                part?.type === "tool-call" ? `group-tc-${part.id}` : `group-${part?.type}-${i}`;
-            groups.push({ type: part?.type, parts: [part], key });
+                isToolPart(part) ? `group-tc-${part.toolCallId}` : `group-${part?.type}-${i}`;
+            groups.push({ type: part.type, parts: [part], key });
         }
     }
 
     return groups;
 }
 
-export function BotMessage({ parts, model, mode, duration, streaming = false, interrupted = false }: Props) {
+export function BotMessage({ parts, model, mode, durationMs, streaming = false}: Props) {
+    const groups = groupConsecutiveParts(parts);
+
     return (
         <box width="100%" alignItems="center">
-            {groupConsecutiveParts(parts).map((group) => {
-                if (group.type === "reasoning") {
-                    return (
-                        <box key={group.key} paddingY={1} width="100%" paddingX={2} border={["left"]} borderColor="#CF8EF4">
-                            {group.parts.map((part, j) => {
-                                if (part.type !== "reasoning") return null;
-                                return (
-                                    <text key={`reasoning-${j}`} attributes={TextAttributes.DIM}>
-                                        {j === 0 ? <em fg="#CF8EF4">Thinking:</em> : null} {part.text}
-                                    </text>
-                                );
-                            })}
-                        </box>
-                    );
-                }
+            {groups.map((group, i) => {
+                const prevGroup = groups[i - 1];
+                
+                // Helper checks to see if a group is a reasoning block or a tool call
+                const isCurrentCompact = group.type === "reasoning" || group.type === "dynamic-tool" || group.type.startsWith("tool-");
+                const isPrevCompact = prevGroup && (prevGroup.type === "reasoning" || prevGroup.type === "dynamic-tool" || prevGroup.type.startsWith("tool-"));
+                
+                // FIX: Condense the UI by dropping the top padding to 0 if transitioning between compact blocks
+                const paddingTop = (i === 0 || (isCurrentCompact && isPrevCompact)) ? 0 : 1;
 
-                if (group.type === "tool-call") {
-                    return (
-                        <box key={group.key} paddingY={1} width="100%" paddingX={2} border={["left"]} borderColor="cyan">
-                            {group.parts.map((part) => {
-                                if (part.type !== "tool-call") return null;
+                return (
+                    <box key={group.key} width="100%" paddingTop={paddingTop}>
+                        {group.parts.map((part, j) => {
+                            if (part.type === "reasoning") {
                                 return (
-                                    <text key={part.id} attributes={TextAttributes.DIM}>
-                                        <em fg="cyan">{formatToolName(part.name)}:</em>{" "}
-                                        {formatToolArgs(part)}
-                                        {part.status === "calling" ? " ..." : ""} 
-                                    </text>
+                                    <box
+                                        key={`reasoning-${j}`}
+                                        border={["left"]}
+                                        borderColor={"#34344A"}
+                                        width="100%"
+                                        paddingX={2}
+                                    >
+                                        <text attributes={TextAttributes.DIM}>
+                                            <em fg="#CF8EF4">Thinking:</em> {part.text}
+                                        </text>
+                                    </box>
                                 );
-                            })}
-                        </box>
-                    );
-                }
+                            }
 
-                if (group.type === "text") {
-                    return (
-                        <box key={group.key} paddingY={1} width="100%">
-                            {group.parts.map((part, j) => {
-                                if (part.type !== "text") return null;
+                            if (isToolPart(part)) {
+                                const toolName =
+                                    part.type === "dynamic-tool" ? part.toolName : part.type.slice("tool-".length);
+
+                                return (
+                                    <box
+                                        key={part.toolCallId}
+                                        border={["left"]}
+                                        borderColor="#34344A"
+                                        width="100%"
+                                        paddingX={2}
+                                    >
+                                        <text attributes={TextAttributes.DIM}>
+                                            <em fg="#56D6C2">{formatToolName(toolName)}:</em> {formatToolArgs(part)}
+                                            {part.state !== "output-available" && part.state !== "output-error" 
+                                                ? " …" 
+                                                : ""
+                                            }
+                                            {part.state === "output-error" ? ` ${part.errorText}` : ""}
+                                        </text>
+                                    </box>
+                                );
+                            }
+
+                            if (part.type === "text") {
                                 return (
                                     <box key={`text-${j}`} paddingX={3} width="100%">
                                         <text>{part.text}</text>
                                     </box>
                                 );
-                            })}
-                        </box>
-                    );
-                }
-
-                return null;
+                            }
+                            
+                            return null;
+                        })}
+                    </box>
+                );
             })}
             
-            <box paddingX={3} paddingBottom={1} gap={1} width="100%">
+            <box paddingX={3} paddingY={1} gap={1} width="100%">
                 <box flexDirection="row" gap={2}>
-                    <text attributes={interrupted ? TextAttributes.DIM : 0} fg={interrupted ? undefined : mode === Mode.PLAN ? "#56D6C2" : "blue"}>
-                        ◉
-                    </text>
+                    <text fg={mode === Mode.PLAN ?"#56D6C2" : "blue" }>◉</text>
                     <box flexDirection="row" gap={1}>               
-                        <text attributes={interrupted ? TextAttributes.DIM : 0}>
+                        <text>
                             {mode === Mode.PLAN ? "Plan" : "Build"}
                         </text>
                         <text attributes={TextAttributes.DIM} fg="#4E4E66">
                             ›
                         </text>
                         <text attributes={TextAttributes.DIM}>{model}</text>
-                        {(duration || interrupted) && (
+                        {(durationMs != null) && (
                             <>
                                 <text attributes={TextAttributes.DIM} fg="#4E4E66">
                                     ›
                                 </text>
-                                <text attributes={TextAttributes.DIM}>{interrupted ? "interrupted" : duration}</text>
+                                <text attributes={TextAttributes.DIM}>{prettyMs(durationMs)}</text>
                             </>
                         )}
                     </box>

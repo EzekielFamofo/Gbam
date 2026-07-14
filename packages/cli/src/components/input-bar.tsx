@@ -10,7 +10,7 @@ import { useKeyboardLayer } from "../providers/keyboard-layer";
 import { useDialog } from "../providers/dialog";
 import { useNavigate } from "react-router";
 import { usePromptConfig } from "src/providers/prompt-config";
-import { Mode } from "@nightcode/database/enums";
+import { Mode } from "@nightcode/shared";
 import {isAbsolute, relative, resolve } from "node:path";
 import { readdir } from "node:fs/promises";
 import { TextAttributes  } from "@opentui/core";
