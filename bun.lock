@@ -8,6 +8,7 @@
         "@ai-sdk/provider-utils": "^5.0.6",
         "@sentry/bun": "^10.63.0",
         "@sentry/hono": "^10.63.0",
+        "dotenv": "^17.4.2",
         "hono": "^4.12.27",
         "react": "19.2.7",
       },
