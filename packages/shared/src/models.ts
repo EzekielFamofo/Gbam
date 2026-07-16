@@ -3,8 +3,7 @@ export type ModelPricing = {
     outputUsdPerMillionTokens: number;
 };
 
-// 1. Updated the provider type to focus on the active platforms
-export type SupportedProvider = "google" | "qwen" | "poolside";
+export type SupportedProvider = "google" | "openai";
 
 type SupportedChatModelDefinition = {
     id: string;
@@ -37,20 +36,29 @@ export const SUPPORTED_CHAT_MODELS = [
             outputUsdPerMillionTokens: 1.50,
         },
     },
+    // OpenAI Models
     {
-        id: "qwen/qwen3-coder:free",
-        provider: "qwen",
+        id: "gpt-4o",
+        provider: "openai",
         pricing: {
-            inputUsdPerMillionTokens: 1, 
-            outputUsdPerMillionTokens: 2,
+            inputUsdPerMillionTokens: 2.50,
+            outputUsdPerMillionTokens: 10.00,
         },
     },
     {
-        id: "poolside/laguna-m.1:free",
-        provider: "poolside",
+        id: "gpt-4o-mini",
+        provider: "openai",
         pricing: {
-            inputUsdPerMillionTokens: 1,
-            outputUsdPerMillionTokens: 2,
+            inputUsdPerMillionTokens: 0.15,
+            outputUsdPerMillionTokens: 0.60,
+        },
+    },
+    {
+        id: "o1",
+        provider: "openai",
+        pricing: {
+            inputUsdPerMillionTokens: 15.00,
+            outputUsdPerMillionTokens: 60.00,
         },
     },
 ] as const satisfies readonly SupportedChatModelDefinition[];
@@ -62,4 +70,4 @@ export function findSupportedChatModel(modelId: string) {
     return SUPPORTED_CHAT_MODELS.find((model) => model.id === modelId);
 }
 
-export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "poolside/laguna-m.1:free";
+export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "gpt-4o-mini";

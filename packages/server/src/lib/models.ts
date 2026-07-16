@@ -1,4 +1,5 @@
 import { google } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import type { ProviderOptions } from "@ai-sdk/provider-utils"
 
@@ -13,8 +14,7 @@ import type { LanguageModel } from 'ai';
 
 // Extract precise model ID subsections based on the current platform definitions.
 type GeminiModelId = Extract<SupportedChatModel, {provider: "google"}>["id"];
-type QwenModelId = Extract<SupportedChatModel, {provider: "qwen"}>["id"];
-type PoolsideModelId = Extract<SupportedChatModel, {provider: "poolside"}>["id"];
+type OpenAIModelId = Extract<SupportedChatModel, {provider: "openai"}>["id"];
 
 export type ResolvedModel = {
     model: LanguageModel;
@@ -26,9 +26,9 @@ export type ResolvedModel = {
 export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, ProviderOptions>> = {
     "gemini-3.5-flash": {
         google: {
-            thinkingConfihg: {
+            thinkingConfig: {
                 thinkingBudget: 0,
-                includeToughts: false,
+                includeThoughts: false,
             }
         }
     },
@@ -48,29 +48,21 @@ export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, Provid
             }
         }
     },
-
-    "qwen/qwen3-coder:free": {
-        openrouter: {
-            extraBody: {
-                reasoning: {
-                    enabled: true,
-                    effort: "high"      
-                }
-            }
+    // OpenAI models
+    "gpt-4o": {},
+    "gpt-4o-mini": {},
+    "o1": {
+        openai: {
+            // Vercel AI SDK expects `reasoningEffort` for OpenAI models.
+            // Accepted values for o-series are: "low", "medium", or "high".
+            reasoningEffort: "high",
         }
     },
-    "poolside/laguna-m.1:free": {
-        openrouter: {
-            extraBody: {
-                reasoning: {
-                    enabled: true,
-                    max_tokens: 4096    
-                }
-            }
-        }
-    }
 };
 
+const openai = createOpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
 
 const openrouter = createOpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -90,19 +82,10 @@ function resolveGeminiModel(modelId: GeminiModelId): ResolvedModel {
     };
 }
 
-function resolveQwenModel(modelId: QwenModelId): ResolvedModel {
+function resolveOpenAIModel(modelId: OpenAIModelId): ResolvedModel {
     return {
-        model: openrouter(modelId),
-        provider: "qwen",
-        modelId,
-        providerOptions: MODEL_PROVIDER_OPTIONS[modelId],
-    };
-}
-
-function resolvePoolsideModel(modelId: PoolsideModelId): ResolvedModel {
-    return {
-        model: openrouter(modelId),
-        provider: "poolside",
+        model: openai(modelId),
+        provider: "openai",
         modelId,
         providerOptions: MODEL_PROVIDER_OPTIONS[modelId],
     };
@@ -116,10 +99,8 @@ export function resolveModel(model: SupportedChatModel): ResolvedModel {
     switch (provider) {
         case "google":
             return resolveGeminiModel(model.id as GeminiModelId);
-        case "qwen":
-            return resolveQwenModel(model.id as QwenModelId);
-        case "poolside":
-            return resolvePoolsideModel(model.id as PoolsideModelId);
+        case "openai":
+            return resolveOpenAIModel(model.id as OpenAIModelId);
         default:
             // Fallback assertion triggers a typescript error if a newly added provider is left unhandled.
             return assertUnsupportedProvider(provider);
