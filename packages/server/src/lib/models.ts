@@ -28,7 +28,7 @@ export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, Provid
         google: {
             thinkingConfig: {
                 thinkingBudget: 0,
-                includeThoughts: false,
+                includeThoughts: true,
             }
         }
     },
@@ -36,7 +36,7 @@ export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, Provid
         google: {
             thinkingConfig: {
                 thinkingLevel: "minimal",
-                includeThoughts: false,
+                includeThoughts: true,
             }
         }
     },
@@ -44,20 +44,14 @@ export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, Provid
         google: {
             thinkingConfig: {
                 thinkingLevel: "minimal",
-                includeThoughts: false,
+                includeThoughts: true,
             }
         }
     },
     // OpenAI models
     "gpt-4o": {},
     "gpt-4o-mini": {},
-    "o1": {
-        openai: {
-            // Vercel AI SDK expects `reasoningEffort` for OpenAI models.
-            // Accepted values for o-series are: "low", "medium", or "high".
-            reasoningEffort: "high",
-        }
-    },
+    "o1": {},
 };
 
 const openai = createOpenAI({
