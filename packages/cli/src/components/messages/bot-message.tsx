@@ -1,11 +1,10 @@
 import { Mode, type ModeType } from "@nightcode/shared";
-import { Text, TextAttributes } from "@opentui/core";
+import { TextAttributes } from "@opentui/core";
 import type { Message } from "src/hooks/use-chat";
 import prettyMs from "pretty-ms";
 
 type ClientMessagePart = Message["parts"][number];
 type ToolPart = Extract<ClientMessagePart, { type: `tool-${string}` | "dynamic-tool" }>;
-
 
 // Component in AI conversation with user
 type Props = {
@@ -23,12 +22,12 @@ function formatToolName(name: string): string {
 }
 
 function isToolPart(part: ClientMessagePart): part is ToolPart {
-    return part.type === "dynamic-tool" || part.type.startsWith("tool-")
-};
+    return part.type === "dynamic-tool" || part.type.startsWith("tool-");
+}
 
 function formatToolArgs(tc: ToolPart): string {
     if (!("input" in tc) || tc.input == null) return "";
-    if (typeof tc.input !== "object") return String(tc.input)
+    if (typeof tc.input !== "object") return String(tc.input);
     return Object.values(tc.input).map(String).join("");
 }
 
@@ -56,7 +55,7 @@ function groupConsecutiveParts(parts: ClientMessagePart[]): PartGroup[] {
     return groups;
 }
 
-export function BotMessage({ parts, model, mode, durationMs, streaming = false}: Props) {
+export function BotMessage({ parts, model, mode, durationMs, streaming = false }: Props) {
     const groups = groupConsecutiveParts(parts);
 
     return (
@@ -68,7 +67,6 @@ export function BotMessage({ parts, model, mode, durationMs, streaming = false}:
                 const isCurrentCompact = group.type === "reasoning" || group.type === "dynamic-tool" || group.type.startsWith("tool-");
                 const isPrevCompact = prevGroup && (prevGroup.type === "reasoning" || prevGroup.type === "dynamic-tool" || prevGroup.type.startsWith("tool-"));
                 
-                // FIX: Condense the UI by dropping the top padding to 0 if transitioning between compact blocks
                 const paddingTop = (i === 0 || (isCurrentCompact && isPrevCompact)) ? 0 : 1;
 
                 return (
@@ -83,9 +81,10 @@ export function BotMessage({ parts, model, mode, durationMs, streaming = false}:
                                         width="100%"
                                         paddingX={2}
                                     >
-                                        <text attributes={TextAttributes.DIM}>
-                                            <em fg="#CF8EF4">Thinking:</em> {part.text}
-                                        </text>
+                                        <box flexDirection="row" gap={1}>
+                                            <text attributes={TextAttributes.DIM} fg="#CF8EF4">Thinking:</text>
+                                            <text attributes={TextAttributes.DIM}>{part.text}</text>
+                                        </box>
                                     </box>
                                 );
                             }
@@ -98,18 +97,19 @@ export function BotMessage({ parts, model, mode, durationMs, streaming = false}:
                                     <box
                                         key={part.toolCallId}
                                         border={["left"]}
-                                        borderColor="#34344A"
+                                        borderColor={"#34344A"}
                                         width="100%"
                                         paddingX={2}
                                     >
-                                        <text attributes={TextAttributes.DIM}>
-                                            <em fg="#56D6C2">{formatToolName(toolName)}:</em> {formatToolArgs(part)}
+                                        <box flexDirection="row" gap={1}>
+                                            <text attributes={TextAttributes.DIM} fg="#56D6C2">{formatToolName(toolName)}:</text>
+                                            <text attributes={TextAttributes.DIM}>{formatToolArgs(part)}</text>
                                             {part.state !== "output-available" && part.state !== "output-error" 
-                                                ? " …" 
-                                                : ""
+                                                ? <text attributes={TextAttributes.DIM}> …</text>
+                                                : null
                                             }
-                                            {part.state === "output-error" ? ` ${part.errorText}` : ""}
-                                        </text>
+                                            {part.state === "output-error" ? <text attributes={TextAttributes.DIM}> {part.errorText}</text> : null}
+                                        </box>
                                     </box>
                                 );
                             }
@@ -130,22 +130,16 @@ export function BotMessage({ parts, model, mode, durationMs, streaming = false}:
             
             <box paddingX={3} paddingY={1} gap={1} width="100%">
                 <box flexDirection="row" gap={2}>
-                    <text fg={mode === Mode.PLAN ?"#56D6C2" : "blue" }>◉</text>
+                    <text fg={mode === Mode.PLAN ? "#56D6C2" : "blue"}>◉</text>
                     <box flexDirection="row" gap={1}>               
-                        <text>
-                            {mode === Mode.PLAN ? "Plan" : "Build"}
-                        </text>
-                        <text attributes={TextAttributes.DIM} fg="#4E4E66">
-                            ›
-                        </text>
+                        <text>{mode === Mode.PLAN ? "Plan" : "Build"}</text>
+                        <text attributes={TextAttributes.DIM} fg="#4E4E66">›</text>
                         <text attributes={TextAttributes.DIM}>{model}</text>
-                        {(durationMs != null) && (
-                            <>
-                                <text attributes={TextAttributes.DIM} fg="#4E4E66">
-                                    ›
-                                </text>
+                        {(durationMs != null && !streaming) && (
+                            <box flexDirection="row" gap={1}>
+                                <text attributes={TextAttributes.DIM} fg="#4E4E66">›</text>
                                 <text attributes={TextAttributes.DIM}>{prettyMs(durationMs)}</text>
-                            </>
+                            </box>
                         )}
                     </box>
                 </box>

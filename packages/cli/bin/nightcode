@@ -1,9 +1,27 @@
 #!/usr/bin/env bun
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 
-dotenv.config({
-    path: path.resolve(import.meta.dirname, "../../../.env"),
-    quiet: true,  
-})
-await import("../src/index.tsx")
+// 1. Safely load the local .env only if it exists (local development)
+const localEnvPath = path.resolve(import.meta.dirname, "../../../.env");
+if (fs.existsSync(localEnvPath)) {
+    dotenv.config({
+        path: localEnvPath,
+        quiet: true,  
+    });
+}
+
+// 2. Locate the compiled production bundle and the raw source file
+const distPath = path.resolve(import.meta.dirname, "../dist/index.js");
+const srcPath = path.resolve(import.meta.dirname, "../src/index.tsx");
+
+// 3. Smart routing: Import dist if compiled, otherwise fallback to local src
+if (fs.existsSync(distPath)) {
+    await import(distPath);
+} else if (fs.existsSync(srcPath)) {
+    await import(srcPath);
+} else {
+    console.error("🚨 Error: Could not find CLI entrypoint (dist/index.js or src/index.tsx)");
+    process.exit(1);
+}

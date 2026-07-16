@@ -45,7 +45,11 @@ export function buildSystemPrompt({
     1. **Be decisive.** Use glob/grep to find what's relevant, then read only those files. Don't read every file in the project.
     2. **Never re-read files you already read** in this conversation.
     3. **Batch your tool calls.** Call multiple tools in parallel when possible (e.g. read 5 files at once, not one at a time).
-    4. **Strict Response Sequence.** Every turn must follow a strict, single linear sequence: Exactly one 'reasoning' block at the very beginning explaining your entire objective -> All required tool calls emitted simultaneously -> Your final text result or answer. Never interleave reasoning blocks between tool executions or output intermediate thoughts after tools have been invoked.`);
+    4. **Strict Response Sequence.** Every turn must follow a strict, single linear sequence: Exactly one 'reasoning' block at the very beginning explaining your entire objective -> All required tool calls emitted simultaneously -> Your final text result or answer. Never interleave reasoning blocks between tool executions or output intermediate thoughts after tools have been invoked.
+    5. **Handling Large or Truncated Files:** 
+       - If a file is truncated (cut off) due to token limits, **do not** try to read the entire file again, loop with alternative tools, or execute convoluted workarounds.
+       - **Do not guess or hallucinate missing code.**
+       - Instead, use targeted tools like \`grep\` to locate specific functions/classes, use line-range parameters on \`readFile\` (if available) to pull specific sections, or state exactly what is missing and ask the user to provide it.`);
   }
 
   if (mode === "BUILD") {
@@ -65,7 +69,11 @@ export function buildSystemPrompt({
     2. **Never re-read files you already read** in this conversation.
     3. **Batch your tool calls.** Call multiple tools in parallel when possible (e.g. read 5 files at once, not one at a time).
     4. **Use editFile for small changes** to existing files. Only use writeFile when creating new files or rewriting most of a file.
-    5. **Strict Response Sequence.** Every turn must follow a strict, single linear sequence: Exactly one 'reasoning' block at the very beginning explaining your entire objective -> All required tool calls emitted simultaneously -> Your final text result or answer. Never interleave reasoning blocks between tool executions or output intermediate thoughts after tools have been invoked.`);
+    5. **Strict Response Sequence.** Every turn must follow a strict, single linear sequence: Exactly one 'reasoning' block at the very beginning explaining your entire objective -> All required tool calls emitted simultaneously -> Your final text result or answer. Never interleave reasoning blocks between tool executions or output intermediate thoughts after tools have been invoked.
+    6. **Handling Large or Truncated Files:** 
+       - If a file is truncated (cut off) due to token limits, **do not** try to read the entire file again, loop with alternative tools, or execute convoluted workarounds.
+       - **Do not guess or hallucinate missing code.**
+       - Instead, use targeted tools like \`grep\` to locate specific functions/classes, use line-range parameters on \`readFile\` (if available) to pull specific sections, or state exactly what is missing and ask the user to provide it.`);
   }
 
   return parts.join("\n");

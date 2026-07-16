@@ -2,13 +2,11 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router";
 import { Header } from "../components/header";
 import { InputBar } from "../components/input-bar";
-import { useTerminalDimensions } from "@opentui/react";
 import { usePromptConfig } from "src/providers/prompt-config";
 import { TextAttributes } from "@opentui/core";
 
 export function Home() {
     const navigate = useNavigate();
-    const dimensions = useTerminalDimensions();
     const { mode, model } = usePromptConfig();
 
     const handleSubmit = useCallback(

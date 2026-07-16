@@ -1,4 +1,3 @@
-import { Mode } from "@nightcode/database/enums"
 import { useCallback } from "react";
 import { useDialog } from "src/providers/dialog";
 import { DialogSearchList } from "../dialog-search-list";
