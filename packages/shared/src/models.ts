@@ -1,6 +1,6 @@
 export type ModelPricing = {
-    inputUsdPerMillionTokens: number;
-    outputUsdPerMillionTokens: number;
+    inputNgNPerMillionTokens: number;
+    outputNgNPerMillionTokens: number;
 };
 
 export type SupportedProvider = "google" | "openai";
@@ -12,53 +12,54 @@ type SupportedChatModelDefinition = {
 };
 
 export const SUPPORTED_CHAT_MODELS = [
+    // Google Models
     {
-        id: "gemini-3.5-flash",
+        id: "gemini-3.5-flash", // Base tier pricing (~$0.15 / $0.60 USD)
         provider: "google",
         pricing: {
-            inputUsdPerMillionTokens: 0.15,
-            outputUsdPerMillionTokens: 0.60,
+            inputNgNPerMillionTokens: 210,   // 0.15 * 1400
+            outputNgNPerMillionTokens: 840,  // 0.60 * 1400
         },
     },
     {
-        id: "gemini-3-flash-preview",
+        id: "gemini-3-flash-preview", // Premium preview pricing (~$0.50 / $2.00 USD)
         provider: "google",
         pricing: {
-            inputUsdPerMillionTokens: 0.50,
-            outputUsdPerMillionTokens: 3.00,
+            inputNgNPerMillionTokens: 700,   // 0.50 * 1400
+            outputNgNPerMillionTokens: 2800, // 2.00 * 1400
         },
     },
     {
-        id: "gemini-3.1-flash-lite",
+        id: "gemini-3.1-flash-lite", // Economy tier (~$0.05 / $0.20 USD)
         provider: "google",
         pricing: {
-            inputUsdPerMillionTokens: 0.25,
-            outputUsdPerMillionTokens: 1.50,
+            inputNgNPerMillionTokens: 70,    // 0.05 * 1400
+            outputNgNPerMillionTokens: 280,  // 0.20 * 1400
         },
     },
     // OpenAI Models
     {
-        id: "gpt-4o",
+        id: "gpt-4o", // Standard flagship (~$2.50 / $10.00 USD)
         provider: "openai",
         pricing: {
-            inputUsdPerMillionTokens: 2.50,
-            outputUsdPerMillionTokens: 10.00,
+            inputNgNPerMillionTokens: 3500,  // 2.50 * 1400
+            outputNgNPerMillionTokens: 14000, // 10.00 * 1400
         },
     },
     {
-        id: "gpt-4o-mini",
+        id: "gpt-4o-mini", // Economy flagship (~$0.15 / $0.60 USD)
         provider: "openai",
         pricing: {
-            inputUsdPerMillionTokens: 0.15,
-            outputUsdPerMillionTokens: 0.60,
+            inputNgNPerMillionTokens: 210,   // 0.15 * 1400
+            outputNgNPerMillionTokens: 840,  // 0.60 * 1400
         },
     },
     {
-        id: "o1",
+        id: "o1", // Reasoning/High-intelligence (~$15.00 / $60.00 USD)
         provider: "openai",
         pricing: {
-            inputUsdPerMillionTokens: 15.00,
-            outputUsdPerMillionTokens: 60.00,
+            inputNgNPerMillionTokens: 21000, // 15.00 * 1400
+            outputNgNPerMillionTokens: 84000, // 60.00 * 1400
         },
     },
 ] as const satisfies readonly SupportedChatModelDefinition[];

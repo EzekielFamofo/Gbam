@@ -319,7 +319,7 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
             syncMentionMenu(text, textarea.cursorOffset);
     },[handleContentChange, syncMentionMenu]);
 
-    const handleSubmit = useCallback(() => {    
+    const handleSubmit = useCallback(() => { 
         if (disabled) return;
 
         const textarea = textareaRef.current;
@@ -351,6 +351,7 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
     }, [mentionCandidates, syncMentionMenu]);
 
     const handleTextareaCursorChange = useCallback(() => {
+    
         const textarea = textareaRef.current;
         if (!textarea) return;
         

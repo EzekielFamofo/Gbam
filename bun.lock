@@ -1,5 +1,6 @@
 {
-  "lockfileVersion": 0,
+  "lockfileVersion": 1,
+  "configVersion": 1,
   "workspaces": {
     "": {
       "name": "Gbam/main",
@@ -18,6 +19,9 @@
     "packages/cli": {
       "name": "Gbam",
       "version": "0.1.0",
+      "bin": {
+        "gbam": "bin/gbam",
+      },
       "dependencies": {
         "@ai-sdk/react": "^4.0.27",
         "@opentui/core": "^0.4.2",
@@ -33,8 +37,8 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@gbam/server": "packages/server",
-        "@gbam/shared": "packages/shared",
+        "@gbam/server": "workspace:*",
+        "@gbam/shared": "workspace:*",
         "@types/bun": "latest",
         "@types/react": "^19.2.17",
       },
@@ -63,8 +67,8 @@
         "@ai-sdk/openai": "^4.0.8",
         "@ai-sdk/provider-utils": "^5.0.6",
         "@clerk/backend": "^3.11.3",
-        "@gbam/database": "packages/database",
-        "@gbam/shared": "packages/shared",
+        "@gbam/database": "workspace:*",
+        "@gbam/shared": "workspace:*",
         "@hono/zod-validator": "^0.8.0",
         "@openrouter/ai-sdk-provider": "^2.10.0",
         "@polar-sh/sdk": "^0.48.1",
@@ -125,11 +129,11 @@
 
     "@electric-sql/pglite-tools": ["@electric-sql/pglite-tools@0.3.1", "", { "peerDependencies": { "@electric-sql/pglite": "0.4.1" } }, "sha512-C+T3oivmy9bpQvSxVqXA1UDY8cB9Eb9vZHL9zxWwEUfDixbXv4G3r2LjoTdR33LD8aomR3O9ZXEO3XEwr/cUCA=="],
 
-    "@gbam/database": ["@gbam/database@workspace:packages/database", { "dependencies": { "@prisma/adapter-pg": "^7.8.0", "@prisma/client": "^7.8.0", "dotenv": "^17.4.2" }, "devDependencies": { "@types/node": "^26.1.0", "prisma": "^7.8.0" } }],
+    "@gbam/database": ["@gbam/database@workspace:packages/database"],
 
-    "@gbam/server": ["@gbam/server@workspace:packages/server", { "dependencies": { "@ai-sdk/anthropic": "^4.0.8", "@ai-sdk/deepseek": "^3.0.5", "@ai-sdk/google": "^4.0.8", "@ai-sdk/openai": "^4.0.8", "@ai-sdk/provider-utils": "^5.0.6", "@clerk/backend": "^3.11.3", "@gbam/database": "packages/database", "@gbam/shared": "packages/shared", "@hono/zod-validator": "^0.8.0", "@openrouter/ai-sdk-provider": "^2.10.0", "@polar-sh/sdk": "^0.48.1", "@sentry/bun": "^10.63.0", "@sentry/hono": "^10.63.0", "ai": "^7.0.15", "dotenv": "^17.4.2", "hono": "^4.12.27", "zod": "^4.4.3" }, "devDependencies": { "@types/bun": "^1.3.14" } }],
+    "@gbam/server": ["@gbam/server@workspace:packages/server"],
 
-    "@gbam/shared": ["@gbam/shared@workspace:packages/shared", { "dependencies": { "ai": "^7.0.26", "zod": "^4.4.3" } }],
+    "@gbam/shared": ["@gbam/shared@workspace:packages/shared"],
 
     "@hono/node-server": ["@hono/node-server@1.19.11", "", { "peerDependencies": { "hono": "^4" } }, "sha512-dr8/3zEaB+p0D2n/IUrlPF1HZm586qgJNXK1a9fhg/PzdtkK7Ksd5l312tJX2yBuALqDYBlG20QEbayqPyxn+g=="],
 
@@ -259,7 +263,7 @@
 
     "@workflow/serde": ["@workflow/serde@4.1.0", "", {}, "sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ=="],
 
-    "Gbam": ["Gbam@workspace:packages/cli", { "dependencies": { "@ai-sdk/react": "^4.0.27", "@opentui/core": "^0.4.2", "@opentui/react": "^0.4.2", "ai": "^7.0.26", "date-fns": "^4.4.0", "hono": "^4.12.27", "open": "^11.0.0", "opentui-spinner": "^0.0.7", "pretty-ms": "^9.3.0", "react": "^19.2.6", "react-router": "^8.1.0", "zod": "^4.4.3" }, "devDependencies": { "@gbam/server": "packages/server", "@gbam/shared": "packages/shared", "@types/bun": "latest", "@types/react": "^19.2.17" }, "peerDependencies": { "typescript": "^5" }, "bin": { "gbam": "bin/gbam" } }],
+    "Gbam": ["Gbam@workspace:packages/cli"],
 
     "ai": ["ai@7.0.30", "", { "dependencies": { "@ai-sdk/gateway": "4.0.22", "@ai-sdk/provider": "4.0.3", "@ai-sdk/provider-utils": "5.0.10" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-tm0gTAHSWBdDfW4P2mj+LlglGCUQTSA9ktyS2PsPgVhxNO9gYWTSnRAehiJ3h1lYsJBp1Zgbz3RH2lezJXagiw=="],
 
@@ -299,7 +303,7 @@
 
     "date-fns": ["date-fns@4.4.0", "", {}, "sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w=="],
 
-    "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" } }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
+    "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" }, "peerDependencies": { "supports-color": "*" }, "optionalPeers": ["supports-color"] }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
 
     "deepmerge-ts": ["deepmerge-ts@7.1.5", "", {}, "sha512-HOJkrhaYsweh+W+e74Yn7YStZOilkoPb6fycpwNLKzSPtruFs48nYis0zy5yJz1+ktUhHxoRDJ27RQAWLIJVJw=="],
 

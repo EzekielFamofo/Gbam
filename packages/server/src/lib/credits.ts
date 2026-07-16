@@ -21,23 +21,25 @@ type TokenCounts = {
 }
 
 const TOKENS_PER_MILLION = 1_000_000;
-// gbam charges in internal credits instead of exposing producer pricing,
-// We currently peg 1 credit to $0.01 so credits stay easy to reason about,
-const USD_PER_CREDIT = 0.01;
+
+// gbam charges in internal credits. 
+// We peg 1 credit to $0.01 USD. 
+// At 1,400 NGN per USD, 1 credit = 14 NGN.
+const NGN_PER_CREDIT = 14;
 
 function getTokenCounts(usage: LanguageModelUsage): TokenCounts {
     const inputTokens = usage.inputTokens;
     const outputTokens = usage.outputTokens;
 
     if (
-    inputTokens == null ||
-    outputTokens == null ||
-    !Number.isFinite(inputTokens) ||
-    !Number.isFinite(outputTokens) ||
-    !Number.isInteger(inputTokens) ||
-    !Number.isInteger(outputTokens) ||
-    inputTokens < 0 ||
-    outputTokens < 0
+        inputTokens == null ||
+        outputTokens == null ||
+        !Number.isFinite(inputTokens) ||
+        !Number.isFinite(outputTokens) ||
+        !Number.isInteger(inputTokens) ||
+        !Number.isInteger(outputTokens) ||
+        inputTokens < 0 ||
+        outputTokens < 0
     ) {
         throw new Error("Credit conversion requires input and output token counts");
     } 
@@ -61,28 +63,25 @@ function getModelPricing(provider: string, model: string): ModelPricing {
     return supportedModel.pricing;
 };
 
-
-function estimateCostUsd({ inputTokens, outputTokens}: TokenCounts, pricing: ModelPricing) {
+function estimateCostNgN({ inputTokens, outputTokens}: TokenCounts, pricing: ModelPricing) {
     return (
-        (inputTokens * pricing.inputUsdPerMillionTokens + outputTokens * pricing.outputUsdPerMillionTokens) / TOKENS_PER_MILLION
+        (inputTokens * pricing.inputNgNPerMillionTokens + outputTokens * pricing.outputNgNPerMillionTokens) / TOKENS_PER_MILLION
     );
 };
 
-function convertUsdToCredits(estimateCostUsd : number) {
-    if (estimateCostUsd <= 0) {
+function convertNgNToCredits(estimateCostNgN: number) {
+    if (estimateCostNgN <= 0) {
         return 0;
     }
 
-    // If a request costs any non-zero amount, charge at least 1 credit then
-    // round up so partial credits always become a whole credit,
-    return Math.max(1, Math.ceil(estimateCostUsd / USD_PER_CREDIT));
+    return Math.max(1, Math.ceil(estimateCostNgN / NGN_PER_CREDIT));
 };
 
 export function CalculateCreditsForUsage({ provider, model, usage, }: CalculateCreditsForUsageParams): BillableUsage {
     const tokenCounts = getTokenCounts(usage);
     const pricing = getModelPricing(provider, model);
-    const estimatedCostUsd = estimateCostUsd(tokenCounts, pricing);
-    const credits = convertUsdToCredits(estimatedCostUsd); 
+    const estimatedCostNgN = estimateCostNgN(tokenCounts, pricing);
+    const credits = convertNgNToCredits(estimatedCostNgN); 
 
     return {
         credits,

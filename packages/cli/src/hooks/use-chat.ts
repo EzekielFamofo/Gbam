@@ -59,7 +59,7 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
             }
         });
     }, [sessionId])
-    const chat = useAiChat<Message>({
+     const chat = useAiChat<Message>({
     id: sessionId,
     messages: initialMessages,
     transport,
