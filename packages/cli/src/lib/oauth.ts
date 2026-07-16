@@ -34,7 +34,7 @@ function decodeState(state: string) {
 export async function performLogin() {
     const clerkFrontendApi = process.env.CLERK_FRONTEND_API;
     const clientId = process.env.CLERK_OAUTH_CLIENT_ID;
-    const apiUrl = process.env.API_URL ?? "https://gbamserver-production-f1fc.up.railway.app";
+    const apiUrl = process.env.API_URL ?? "https://gbam-production.up.railway.app";
 
     if (!clerkFrontendApi) throw new Error("CLERK_FRONTEND_API not set");
     if (!clientId) throw new Error("CLERK_OAUTH_CLIENT_ID not set");
@@ -148,6 +148,9 @@ export async function performLogin() {
         authorizeUrl.searchParams.set("prompt", "login");
         authorizeUrl.searchParams.set("code_challenge", codeChallenge);
         authorizeUrl.searchParams.set("code_challenge_method", "S256");
+
+        console.log("Authorize URL:", authorizeUrl.toString());
+        console.log("Redirect URI value:", redirectUri);
 
         void open(authorizeUrl.toString());
 
