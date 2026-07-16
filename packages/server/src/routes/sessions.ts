@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { db } from "@nightcode/database/client";
+import { db } from "@gbam/database/client";
 import * as Sentry from "@sentry/hono/bun";
 import { Hono } from "hono";
 import z from "zod";

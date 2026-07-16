@@ -1,5 +1,5 @@
 {
-  "name": "@nightcode/shared",
+  "name": "@gbam/shared",
   "type": "module",
   "private": true,
   "exports": {

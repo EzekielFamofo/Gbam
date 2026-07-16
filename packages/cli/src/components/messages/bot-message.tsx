@@ -1,4 +1,4 @@
-import { Mode, type ModeType } from "@nightcode/shared";
+import { Mode, type ModeType } from "@gbam/shared";
 import { TextAttributes } from "@opentui/core";
 import type { Message } from "src/hooks/use-chat";
 import prettyMs from "pretty-ms";

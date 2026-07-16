@@ -1,9 +1,9 @@
 import { hc } from "hono/client";
-import type { AppType }from "@nightcode/server"
+import type { AppType }from "@gbam/server"
 import { clearAuth, getAuth } from "./auth";
 
 export const apiClient = hc<AppType>(
-     process.env.API_URL ?? "https://nightcodeserver-production-f1fc.up.railway.app",
+     process.env.API_URL ?? "https://gbamserver-production-f1fc.up.railway.app",
      {
         fetch: async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
             const headers = new Headers(init?.headers);

@@ -1,4 +1,4 @@
-import { getToolContracts, modeSchema, ModeType, ToolContracts } from "@nightcode/shared"
+import { getToolContracts, modeSchema, ModeType, ToolContracts } from "@gbam/shared"
 import { convertToModelMessages, InferUITools, LanguageModelUsage, streamText, UIMessage, safeValidateUIMessages } from "ai";
 import z from "zod";
 import { isSupportedChatModel, resolveChatModel } from "../lib/models";
@@ -6,7 +6,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { AuthenticatedEnv } from "../middleware/require-auth";
 import { requireCreditsBalance } from "../middleware/require-credits-balance";
-import { db } from "@nightcode/database/client";
+import { db } from "@gbam/database/client";
 import { buildSystemPrompt } from "../system-prompt";
 import { Prisma } from "../../../database/generated/prisma/client";
 import { CalculateCreditsForUsage } from "../lib/credits";
@@ -19,12 +19,12 @@ type ChatMessageMetadata = {
     usage?: LanguageModelUsage;
 };
 
-type NightcodeUIMessage = UIMessage<ChatMessageMetadata, never, InferUITools<ToolContracts>>;
+type gbamUIMessage = UIMessage<ChatMessageMetadata, never, InferUITools<ToolContracts>>;
 
 const submitSchema = z.object({
     id: z.string(),
     messages: z.array(
-        z.custom<NightcodeUIMessage>((value) => {
+        z.custom<gbamUIMessage>((value) => {
             return value !== null && typeof value === "object" && "id" in value && "parts" in value;
         }),
     ).min(1),
@@ -38,7 +38,7 @@ const submitValidator = zValidator("json", submitSchema, (result, c) => {
     }
 });
 
-function hasPendingToolCalls(message: NightcodeUIMessage) {
+function hasPendingToolCalls(message: gbamUIMessage) {
     return message.parts.some((part) => {
         if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
             const state = (part as { state?: string }).state;
@@ -71,7 +71,7 @@ const app = new Hono<AuthenticatedEnv>()
             const tools = getToolContracts(mode);
             const resolvedModel = resolveChatModel(model);
             const prreviousMessages = Array.isArray(session.messages)
-                ? (session.messages as unknown as NightcodeUIMessage[])
+                ? (session.messages as unknown as gbamUIMessage[])
                 : [];
             const mergedMessages =  [...prreviousMessages];
 
@@ -79,7 +79,7 @@ const app = new Hono<AuthenticatedEnv>()
                 const incomingMessage = {
                     ...message,
                     metadata: { ...message.metadata, mode, model },
-                } satisfies NightcodeUIMessage;
+                } satisfies gbamUIMessage;
 
                 const existingMessageIndex = mergedMessages.findIndex((m) => m.id === incomingMessage.id)
 
@@ -94,7 +94,7 @@ const app = new Hono<AuthenticatedEnv>()
             const cleanMergedMessages = mergedMessages.filter((m) => m.parts && m.parts.length > 0);
 
             // 2. Safely validate the messages using safeValidateUIMessages
-            const validationResult = await safeValidateUIMessages<NightcodeUIMessage>({
+            const validationResult = await safeValidateUIMessages<gbamUIMessage>({
                 messages: cleanMergedMessages,
                 tools,
             });
@@ -123,7 +123,7 @@ const app = new Hono<AuthenticatedEnv>()
                 },
             });
 
-            return result.toUIMessageStreamResponse<NightcodeUIMessage>({
+            return result.toUIMessageStreamResponse<gbamUIMessage>({
                 originalMessages: nextMessages,
                 messageMetadata({ part }) {
                     if (part.type === "start") {

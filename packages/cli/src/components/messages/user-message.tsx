@@ -1,4 +1,4 @@
-import { Mode, type ModeType } from "@nightcode/shared";
+import { Mode, type ModeType } from "@gbam/shared";
 
 // Component in AI conversation with user
 type Props ={

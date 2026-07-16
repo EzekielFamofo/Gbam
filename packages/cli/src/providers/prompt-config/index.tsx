@@ -1,4 +1,4 @@
-import { DEFAULT_CHAT_MODEL_ID, type SupportedChatModelId, Mode, type ModeType } from "@nightcode/shared"
+import { DEFAULT_CHAT_MODEL_ID, type SupportedChatModelId, Mode, type ModeType } from "@gbam/shared"
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 
 type PromptConfigContextValue = {

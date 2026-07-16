@@ -1,4 +1,4 @@
-import { Mode, type ModeType } from "@nightcode/shared"
+import { Mode, type ModeType } from "@gbam/shared"
 import { useCallback } from "react";
 import { useDialog } from "src/providers/dialog";
 import { DialogSearchList } from "../dialog-search-list";

@@ -1,4 +1,4 @@
-import type { ModeType, SupportedChatModelId } from "@nightcode/shared";
+import type { ModeType, SupportedChatModelId } from "@gbam/shared";
 import type { DialogContextValue } from "../../providers/dialog";
 import type { ToastContextValue } from "../../providers/toast";
 

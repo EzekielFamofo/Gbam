@@ -1,4 +1,4 @@
-import { SUPPORTED_CHAT_MODELS } from "@nightcode/shared";
+import { SUPPORTED_CHAT_MODELS } from "@gbam/shared";
 import { SessionsDialogContent, AgentsDialogContent, ModelsDialogContent } from "../dialogs";
 import type {Command} from "./type"
 import { performLogin } from "src/lib/oauth";

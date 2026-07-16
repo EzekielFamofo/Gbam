@@ -1,5 +1,5 @@
 {
-  "name": "@nightcode/database",
+  "name": "@gbam/database",
   "type": "module",
   "private": true,
   "exports": {

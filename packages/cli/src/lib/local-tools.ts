@@ -1,6 +1,6 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "path";
-import { toolInputSchemas, Mode, type ModeType } from "@nightcode/shared";
+import { toolInputSchemas, Mode, type ModeType } from "@gbam/shared";
 
 
 const MAX_FILE_SIZE = 40_000;     

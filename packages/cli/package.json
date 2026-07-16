@@ -1,10 +1,10 @@
 {
-  "name": "eazyfam/nightcode",
+  "name": "Gbam",
   "version": "0.1.0",
-  "description": "Nightcode CLI",
+  "description": "Gbam CLI",
   "type": "module",
   "bin": {
-    "nightcode": "bin/nightcode"
+    "gbam": "bin/gbam"
   },
   "files": [
     "bin",
@@ -18,8 +18,8 @@
     "build": "bun build src/index.tsx  --outdir ./dist --target node --sourcemap=inline --outfile dist/index.js --target bun --bundle --external \"@opentui/core*\""  
   },
   "devDependencies": {
-    "@nightcode/shared": "workspace:*",
-    "@nightcode/server": "workspace:*",
+    "@gbam/shared": "workspace:*",
+    "@gbam/server": "workspace:*",
     "@types/bun": "latest",
     "@types/react": "^19.2.17"
   },

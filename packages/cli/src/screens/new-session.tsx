@@ -6,7 +6,7 @@ import z from "zod";
 import { useToast } from "src/providers/toast";
 import { apiClient } from "src/lib/api-client";
 import { getErrorMessage } from "src/lib/htttp-errors";
-import { Mode, modeSchema } from "@nightcode/shared";
+import { Mode, modeSchema } from "@gbam/shared";
 // This component is going to be the default view anytime a new session is created 
 
 const newSessionStateSchema = z.object({

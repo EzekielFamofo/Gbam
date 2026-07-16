@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mode, type ModeType } from "@nightcode/shared";
+import { Mode, type ModeType } from "@gbam/shared";
 
 type Props = {
     mode?: ModeType; 

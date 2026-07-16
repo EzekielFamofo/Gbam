@@ -34,7 +34,7 @@ function decodeState(state: string) {
 export async function performLogin() {
     const clerkFrontendApi = process.env.CLERK_FRONTEND_API;
     const clientId = process.env.CLERK_OAUTH_CLIENT_ID;
-    const apiUrl = process.env.API_URL ?? "https://nightcodeserver-production-f1fc.up.railway.app";
+    const apiUrl = process.env.API_URL ?? "https://gbamserver-production-f1fc.up.railway.app";
 
     if (!clerkFrontendApi) throw new Error("CLERK_FRONTEND_API not set");
     if (!clientId) throw new Error("CLERK_OAUTH_CLIENT_ID not set");

@@ -6,7 +6,7 @@
       "ignoreDeprecations": "6.0",
       "baseUrl": ".",
       "paths": {
-        "@nightcode/server": ["../server/src/index.ts"]
+        "@gbam/server": ["../server/src/index.ts"]
     }
   }  
 } 

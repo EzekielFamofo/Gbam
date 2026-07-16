@@ -1,4 +1,4 @@
-import { Mode } from "@nightcode/shared";
+import { Mode } from "@gbam/shared";
 import { TextAttributes } from "@opentui/core";
 import { usePromptConfig } from "src/providers/prompt-config";
 

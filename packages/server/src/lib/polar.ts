@@ -59,7 +59,7 @@ export async function createCheckoutUrl({ customerExternalId, requestUrl }: Crea
         products: [getPolarProductId()],
         successUrl: new URL("/billing/success", requestUrl).toString(),
         externalCustomerId: customerExternalId,
-        metadata: { source: "nightcode-cli" },
+        metadata: { source: "gbam-cli" },
     });
 
     return result.url;
@@ -113,7 +113,7 @@ export async function IngestAiUsage({ externalCustomerId, eventId, credits }: In
     await polar.events.ingest({
         events: [
             {
-                name: "nightcode_usage",
+                name: "gbam_usage",
                 externalId: eventId,
                 externalCustomerId,
                 metadata: { credits },

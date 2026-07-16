@@ -8,7 +8,7 @@ import { useToast } from "src/providers/toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getErrorMessage } from "src/lib/htttp-errors";
 import { useChat, type Message } from "src/hooks/use-chat";
-import {type ModeType, type SupportedChatModelId } from "@nightcode/shared";
+import {type ModeType, type SupportedChatModelId } from "@gbam/shared";
 import { useKeyboardLayer } from "src/providers/keyboard-layer";
 import { useKeyboard } from "@opentui/react";
 import { usePromptConfig } from "src/providers/prompt-config";

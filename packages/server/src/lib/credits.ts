@@ -2,7 +2,7 @@ import {
     SUPPORTED_CHAT_MODELS,
     findSupportedChatModel,
     type ModelPricing
-} from "@nightcode/shared";
+} from "@gbam/shared";
 import type { LanguageModelUsage } from "ai";
 
 type CalculateCreditsForUsageParams = {
@@ -21,7 +21,7 @@ type TokenCounts = {
 }
 
 const TOKENS_PER_MILLION = 1_000_000;
-// NIghtcode charges in internal credits instead of exposing producer pricing,
+// gbam charges in internal credits instead of exposing producer pricing,
 // We currently peg 1 credit to $0.01 so credits stay easy to reason about,
 const USD_PER_CREDIT = 0.01;
 

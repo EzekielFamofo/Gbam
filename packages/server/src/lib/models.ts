@@ -7,7 +7,7 @@ import {
     type SupportedChatModel,
     type SupportedChatModelId,
     type SupportedProvider
-} from "@nightcode/shared";
+} from "@gbam/shared";
 
 import type { LanguageModel } from 'ai';
 
