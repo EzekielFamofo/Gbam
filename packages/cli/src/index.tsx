@@ -5,10 +5,19 @@ import { RootLayout } from "./layouts/root-layout";
 import { Home } from "./screens/home";
 import { NewSession } from "./screens/new-session";
 import { Session } from "./screens/session";
+import { ErrorBoundary } from "./components/error-boundary";
+import { ErrorUI } from "./components/error-ui"; 
+
+process.on('uncaughtException', (err) => {
+    console.error("🔥 GLOBAL CRASH DETECTED:");
+    console.error(err);
+    process.exit(1);
+})
 
 const router = createMemoryRouter ([
   {//setting up a  memory-based router
     path: "/",
+    errorElement: <ErrorUI />,
     element: <RootLayout />,
     children : [
       { index:true, element: <Home /> },// default view, home component
@@ -19,7 +28,11 @@ const router = createMemoryRouter ([
 ]);
 
 function App() {
-  return <RouterProvider router={router} />
+  return (
+    <ErrorBoundary>
+        <RouterProvider router={router} />
+    </ErrorBoundary>
+  )
 }
 
 const renderer = await createCliRenderer({

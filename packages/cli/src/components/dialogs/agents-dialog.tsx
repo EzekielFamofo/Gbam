@@ -15,32 +15,28 @@ function getModeLabel(mode: ModeType) {
 }
 
 export const AgentsDialogContent = ({ currentMode, onSelectMode}: AgentsDialogContentProps) => {
-    const dialog= useDialog();
+    const dialog = useDialog(); //[cite: 11]
 
     const handleSelect = useCallback((nextMode: ModeType) => {
         onSelectMode(nextMode);
         dialog.close();
-        },
-        [dialog, onSelectMode]
-    )
+    }, [dialog, onSelectMode]); //[cite: 11]
 
     return (
         <DialogSearchList 
             items={AVAILABLE_MODES}
             onSelect={handleSelect}
             filterFn={(item, query) => getModeLabel(item).toLowerCase().includes(query.toLowerCase())}
-            renderItem={(item,  isSelected) => (
-                <text selectable={false} fg={isSelected ? "black" : "white"}>
-                    {item === currentMode ? " • " : "  "}
-                    {getModeLabel(item)}
-                </text>
+            renderItem={(item, isSelected) => (
+                <box flexDirection="row" gap={1}>
+                    {/* ✅ FIXED: Flattened text layout to prevent indentation syntax translation */}
+                    <text selectable={false} fg={isSelected ? "black" : "white"}>{(item === currentMode) ? "•" : " "}</text>
+                    <text selectable={false} fg={isSelected ? "black" : "white"}>{getModeLabel(item)}</text>
+                </box>
             )}
             getKey={(item) => item}
             placeholder="Search agents"
             emptyText="No matching agents"
-        >
-
-        </DialogSearchList>
+        /> /* ✅ FIXED: Changed to self-closing to avoid compiling raw whitespace between tags */
     )
-
 }

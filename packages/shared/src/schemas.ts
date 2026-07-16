@@ -1,4 +1,4 @@
-import  {tool} from "ai"
+import { tool } from "ai"
 import z from "zod"
 
 export const Mode = {
@@ -11,8 +11,11 @@ export const modeSchema = z.enum([Mode.BUILD, Mode.PLAN]);
 export type ModeType = ( typeof Mode)[keyof typeof Mode];
 
 export const toolInputSchemas = {
+    // ✅ UPDATED: Added pagination capabilities to prevent token-limit truncation issues
     readFile: z.object({
         path: z.string().describe("Relative path to the file to read"),
+        startLine: z.number().optional().describe("1-based line number to start reading from"),
+        lineCount: z.number().optional().describe("Number of lines to read (default: 150)"),
     }),
     listDirectory: z.object({
         path: z.string().default(".").describe("Relative directory path to list"),
@@ -44,8 +47,9 @@ export const toolInputSchemas = {
 } as const;
 
 export const readOnlyToolContracts = {
+    // ✅ UPDATED: Clarified in description that lines can be requested directly
     readFile: tool({
-        description: "Read a file from the current project directory.",
+        description: "Read a file from the current project directory. Supports startLine and lineCount for paginating large files.",
         inputSchema: toolInputSchemas.readFile,
     }),
     listDirectory: tool({
