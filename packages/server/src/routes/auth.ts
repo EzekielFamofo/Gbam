@@ -26,7 +26,7 @@ const app = new Hono().get("/callback", (c) => {
             throw new Error("Invalid part in state");
         }
 
-        const redirectUrl = `https://gbam-production.up.railway.app/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+        const redirectUrl = `http://localhost:${port}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
 
         return c.redirect(redirectUrl);
     } catch {
