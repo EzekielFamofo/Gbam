@@ -36,7 +36,7 @@ export async function performLogin() {
     const clientId = "591uvOvTs2nG59HL";
 
     const apiUrl = process.env.API_URL ?? "https://api.gbam.dev";
-    const webUrl = process.env.WEB_URL ?? "http://localhost:3000";
+    const webUrl = process.env.WEB_URL ?? "https://gbam.dev";
 
     if (!clerkFrontendApi) throw new Error("CLERK_FRONTEND_API not set");
     if (!clientId) throw new Error("CLERK_OAUTH_CLIENT_ID not set");
