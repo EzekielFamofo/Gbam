@@ -9,11 +9,17 @@ import { requireAuth } from './middleware/require-auth';
 
 const app = new Hono();
 
+const allowedOrigins = [
+  "https://gbam.dev",
+  "https://www.gbam.dev",
+  "http://localhost:3000", // remove once you no longer need local dev against prod
+];
+
 // 1. Configure CORS with explicit header permissions
 app.use(
   "/*",
   cors({
-    origin: "*", // In production, change this to your specific frontend URL!
+    origin: allowedOrigins,
     allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
@@ -23,10 +29,12 @@ app.use(
 
 // 2. Global Error Handler
 app.onError((error, c) => {
-    // 🚨 CRITICAL CORS FIX: Ensure error responses have CORS headers.
-    // Otherwise, 401 Unauthorized or 500 crashes will be masked as "CORS errors" in the browser!
-    c.header("Access-Control-Allow-Origin", "*");
-    c.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    // Mirror the same allow-list here so errors get the same CORS treatment as successes
+    const origin = c.req.header("Origin");
+    if (origin && allowedOrigins.includes(origin)) {
+        c.header("Access-Control-Allow-Origin", origin);
+    }
+    c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
     c.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
     if (error instanceof HTTPException) {
@@ -54,5 +62,4 @@ const routes = app
 
 export type AppType = typeof routes;
 
-// IdleTimeout must be high otherwise LLM tool calls will malfunction
 export default { port: 3000, fetch: app.fetch, idleTimeout: 225 };

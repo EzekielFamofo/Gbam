@@ -9,7 +9,7 @@ type OAuthState = {
     port: number;
 }
 
-function toBaseUrl(input : Uint8Array | string) {
+function toBaseUrl(input: Uint8Array | string) {
     return Buffer.from(input).toString("base64url");
 }
 
@@ -28,13 +28,15 @@ function decodeState(state: string) {
         throw new Error("Invalid state");
     }
 
-    return JSON.parse(Buffer.from(encoded, "base64url").toString()) as OAuthState
+    return JSON.parse(Buffer.from(encoded, "base64url").toString()) as OAuthState;
 }
 
 export async function performLogin() {
-    const clerkFrontendApi = process.env.CLERK_FRONTEND_API;
-    const clientId = process.env.CLERK_OAUTH_CLIENT_ID;
-    const apiUrl = process.env.API_URL ?? "https://gbam-production.up.railway.app";
+    const clerkFrontendApi = "https://supreme-cougar-41.clerk.accounts.dev";
+    const clientId = "591uvOvTs2nG59HL";
+
+    const apiUrl = process.env.API_URL ?? "https://api.gbam.dev";
+    const webUrl = process.env.WEB_URL ?? "http://localhost:3000";
 
     if (!clerkFrontendApi) throw new Error("CLERK_FRONTEND_API not set");
     if (!clientId) throw new Error("CLERK_OAUTH_CLIENT_ID not set");
@@ -52,7 +54,7 @@ export async function performLogin() {
                 const url = new URL(req.url);
 
                 if (url.pathname !== "/callback") {
-                    return new Response("Not found", { status : 404})
+                    return new Response("Not found", { status: 404 });
                 }
                 
                 const error = url.searchParams.get("error");
@@ -75,7 +77,7 @@ export async function performLogin() {
                     return new Response("Bad request", { status: 400 });
                 }
 
-                //Verify nonce from state
+                // Verify nonce from state
                 try {
                     const payload = decodeState(state);
                     
@@ -88,18 +90,17 @@ export async function performLogin() {
                 }
 
                 try {
-                    // Exchange authorization code for Clerk tokens
-                    const redirectUrl = `${apiUrl}/auth/callback`;
+                    // This MUST exactly match the CLI_OAUTH_REDIRECT_URI set in your web/cli-auth/page.tsx
+                    const redirectUri = `${apiUrl}/auth/callback`;
 
+                    // Exchange authorization code for Clerk tokens
                     const tokenRes = await fetch(`${clerkFrontendApi}/oauth/token`, {
                         method: "POST",
-                        // ✅ FIX 1: Corrected Content-Type spelling
                         headers: { "Content-Type": "application/x-www-form-urlencoded" },
                         body: new URLSearchParams({
                             grant_type: "authorization_code",
                             code,
-                            // ✅ FIX 2: Changed redirect_url to redirect_uri
-                            redirect_uri: redirectUrl, 
+                            redirect_uri: redirectUri, 
                             client_id: clientId,
                             code_verifier: codeVerifier
                         }),
@@ -107,28 +108,28 @@ export async function performLogin() {
                     
                     if (!tokenRes.ok) {
                         const details = await tokenRes.text();
-                        throw new Error(details || "Failed to exchange authorization code")
+                        throw new Error(details || "Failed to exchange authorization code");
                     }
 
                     const tokenData = (await tokenRes.json()) as { access_token: string };
 
-                    settled= true;
-                    saveAuth({ token: tokenData.access_token});
-                    resolve({ token: tokenData.access_token});
+                    settled = true;
+                    saveAuth({ token: tokenData.access_token });
+                    resolve({ token: tokenData.access_token });
                     setTimeout(() => server.stop(), 500);
                     return new Response("Authenticated! You can close this tab.");
 
                 } catch (err) {
                     settled = true;
                     reject(err);
-                    const message = await getErrorMessage(err as any) ;
-                    setTimeout(() => server.stop(), 500)
-                    return new Response(`Authentication failed: ${message}`, { status: 400 })
+                    const message = await getErrorMessage(err as any);
+                    setTimeout(() => server.stop(), 500);
+                    return new Response(`Authentication failed: ${message}`, { status: 400 });
                 }
            },
         });
 
-        //Build state with port and nonce
+        // Build state with port and nonce
         const port = server.port;
         if (typeof port !== "number") {
             server.stop();
@@ -137,29 +138,23 @@ export async function performLogin() {
         }
 
         const state = encodeState({ port, nonce });
-        const redirectUri = `${apiUrl}/auth/callback`;
 
-        const authorizeUrl = new URL(`${clerkFrontendApi}/oauth/authorize`);
-        authorizeUrl.searchParams.set("response_type", "code");
-        authorizeUrl.searchParams.set("client_id", clientId);
-        authorizeUrl.searchParams.set("redirect_uri", redirectUri);
-        authorizeUrl.searchParams.set("scope", "openid email profile");
+        // Point the CLI to your custom Web Next.js application instead of Clerk directly
+        const authorizeUrl = new URL(`${webUrl}/cli-auth`);
         authorizeUrl.searchParams.set("state", state);
-        authorizeUrl.searchParams.set("prompt", "login");
         authorizeUrl.searchParams.set("code_challenge", codeChallenge);
         authorizeUrl.searchParams.set("code_challenge_method", "S256");
 
-        console.log("Authorize URL:", authorizeUrl.toString());
-        console.log("Redirect URI value:", redirectUri);
-
+        console.log("Opening browser to authenticate...");
+        
         void open(authorizeUrl.toString());
 
         setTimeout(() => {
             if (!settled) {
-                settled =  true;
+                settled = true;
                 server.stop();
                 reject(new Error("Login timed out"));
             }
-        }, LOGIN_TIMEOUT_MS)
+        }, LOGIN_TIMEOUT_MS);
     });
 }
