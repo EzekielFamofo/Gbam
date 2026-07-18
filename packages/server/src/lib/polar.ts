@@ -66,24 +66,33 @@ export async function createCheckoutUrl({ customerExternalId, requestUrl }: Crea
 }
 
 export async function createCustomerPortalUrl({ customerExternalId, requestUrl }: CreateCheckoutUrlParams) {
-    const result = await polar.customerSessions.create({
-        externalCustomerId: customerExternalId,
-        returnUrl: new URL("/billing/success", requestUrl).toString(),
-    });
+    try {
+        const result = await polar.customerSessions.create({
+            externalCustomerId: customerExternalId,
+            returnUrl: new URL("/billing/success", requestUrl).toString(),
+        });
 
-    return result.customerPortalUrl;
+        return result.customerPortalUrl;
+    } catch (error) {
+        if (hasStatusCode(error) && (error.statusCode === 404 || error.statusCode === 422)) {
+            throw new Error("No billing account found. Run /upgrade to get started.");
+        }
+        throw error;
+    }
 };
-
 export async function getAvailableCreditsBalance(customerExternalId: string) {
     try {
         const customerState = await polar.customers.getStateExternal({
             externalId: customerExternalId,
         });
 
+        // 👇 Temporary Debug Logs
+        console.log("Polar External ID Sent:", customerExternalId);
+        console.log("Polar Active Meters found:", JSON.stringify(customerState.activeMeters, null, 2));
+
         const matchingMeters = customerState.activeMeters.filter(
             (meter) => meter.meterId === getPolarCreditsMeterId(),
         );
-
         if (matchingMeters.length > 1) {
             throw new Error("Expected exactly one matching Polar credits meter");
         }

@@ -11,6 +11,7 @@ import { buildSystemPrompt } from "../system-prompt";
 import { Prisma } from "../../../database/generated/prisma/client";
 import { CalculateCreditsForUsage } from "../lib/credits";
 import { IngestAiUsage } from "../lib/polar";
+import { requireAuth } from "../middleware/require-auth";
 
 type ChatMessageMetadata = {
     mode?: ModeType;
@@ -51,12 +52,15 @@ function hasPendingToolCalls(message: gbamUIMessage) {
 
 
 const app = new Hono<AuthenticatedEnv>()
+    .use("*", requireAuth)
     .post(
         "/",
-        requireCreditsBalance,
         submitValidator,
+        requireCreditsBalance,
         async (c) => {
             const userId = c.get("userId");
+            console.log("DEBUG: Extracted User ID in route:", userId); // 👈 If this is undefined, it's Reason #1
+            
             const { id, messages, mode, model } = c.req.valid("json");
 
             const session = await db.session.findUnique({

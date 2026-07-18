@@ -12,10 +12,16 @@ const app = new Hono();
 const allowedOrigins = [
   "https://gbam.dev",
   "https://www.gbam.dev",
-  "http://localhost:3000", // remove once you no longer need local dev against prod
+  "http://localhost:3000",
+   "http://localhost:3001"
 ];
 
-// 1. Configure CORS with explicit header permissions
+// 1. Global Debug Logger (Ensures you see exactly what paths are hitting this server)
+app.use("*", async (c, next) => {
+  console.log(`[BACKEND LOG] ${c.req.method} ${c.req.path}`);
+  await next();
+});
+
 app.use(
   "/*",
   cors({
@@ -27,9 +33,7 @@ app.use(
   })
 );
 
-// 2. Global Error Handler
 app.onError((error, c) => {
-    // Mirror the same allow-list here so errors get the same CORS treatment as successes
     const origin = c.req.header("Origin");
     if (origin && allowedOrigins.includes(origin)) {
         c.header("Access-Control-Allow-Origin", origin);
@@ -38,28 +42,26 @@ app.onError((error, c) => {
     c.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
     if (error instanceof HTTPException) {
-        return c.json({
-            error: error.message || "Request failed" 
-        }, error.status);
+        return c.json({ error: error.message || "Request failed" }, error.status);
     }
     
     console.error("Unhandled server error:", error);
     return c.json({ error: "Internal server error" }, 500);
 });
 
-// 3. Apply Auth protection
-app.use("/sessions/*", requireAuth);
-app.use("/chat/*", requireAuth);
+// 2. Fixed Wildcards: Using * instead of /* ensures the base path is also protected
 app.use("/billing/portal", requireAuth);
 app.use("/billing/checkout", requireAuth);
 
-// 4. Register Routes
+// 3. Register Routes (If your frontend hits /api/chat, change "/chat" below to "/api/chat")
 const routes = app
     .route("/auth", auth)
     .route("/billing", billing)
     .route("/sessions", sessions)
-    .route("/chat", chat);
+    .route("/chat", chat); 
 
 export type AppType = typeof routes;
 
-export default { port: 3000, fetch: app.fetch, idleTimeout: 225 };
+const port = Number(process.env.PORT) || 3001; // Railway injects PORT in prod; 3001 is just your local fallback
+
+export default { port, fetch: app.fetch, idleTimeout: 225 };

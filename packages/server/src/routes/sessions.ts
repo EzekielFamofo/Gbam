@@ -3,6 +3,7 @@ import { db } from "@gbam/database/client";
 import * as Sentry from "@sentry/hono/bun";
 import { Hono } from "hono";
 import z from "zod";
+import { requireAuth } from "../middleware/require-auth";
 
 
 import { AuthenticatedEnv } from "../middleware/require-auth";
@@ -26,6 +27,7 @@ const createSessionValidator = zValidator(
 });
 
 const app = new Hono<AuthenticatedEnv>()
+    .use("*", requireAuth)
     .get("/", async (c) => {
 
         const userId = c.get("userId")
@@ -67,7 +69,7 @@ const app = new Hono<AuthenticatedEnv>()
 
         return c.json(session);
     })
-    .post("/",requireCreditsBalance, createSessionValidator, async (c) =>{
+    .post("/", createSessionValidator, requireCreditsBalance,  async (c) =>{
         //await new Promise((r) => setTimeout(r, 5000))
 
         //throw new HTTPException (

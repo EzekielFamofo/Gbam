@@ -3,8 +3,13 @@ import type { AuthenticatedEnv } from "./require-auth";
 import { getAvailableCreditsBalance } from "../lib/polar";
 
 export const requireCreditsBalance = createMiddleware<AuthenticatedEnv>(async (c, next) => {
+    const userId = c.get("userId");
+
+    if (!userId) {
+        console.error("🚨 requireCreditsBalance ran before userId was set — check middleware order");
+        return c.json({ error: "Unauthorized" }, 401);
+    }
     try {
-        const userId = c.get("userId");
         const creditsBalance = await getAvailableCreditsBalance(userId);
 
         // This is a simple launch-time gate: only start new work when the customer
@@ -15,7 +20,9 @@ export const requireCreditsBalance = createMiddleware<AuthenticatedEnv>(async (c
         }
 
         await next();
-    } catch {
+    } catch (error) {
+        console.error("🚨 Credit Verification Crash Error:", error);
+        
         return c.json({ error: "Unable to verify credits balance right now"}, 503)
     }
 });

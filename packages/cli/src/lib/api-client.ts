@@ -3,7 +3,7 @@ import type { AppType }from "@gbam/server"
 import { clearAuth, getAuth } from "./auth";
 
 export const apiClient = hc<AppType>(
-     process.env.API_URL ?? "https://api.gbam.dev",
+     process.env.API_URL ?? "http://localhost:3001",
      {
         fetch: async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
             const headers = new Headers(init?.headers);

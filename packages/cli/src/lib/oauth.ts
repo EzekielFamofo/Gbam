@@ -92,6 +92,8 @@ export async function performLogin() {
                 try {
                     // This MUST exactly match the CLI_OAUTH_REDIRECT_URI set in your web/cli-auth/page.tsx
                     const redirectUri = `${apiUrl}/auth/callback`;
+                        console.log("Token exchange target:", `${clerkFrontendApi}/oauth/token`);
+                        console.log("redirect_uri:", redirectUri);
 
                     // Exchange authorization code for Clerk tokens
                     const tokenRes = await fetch(`${clerkFrontendApi}/oauth/token`, {
@@ -122,7 +124,7 @@ export async function performLogin() {
                 } catch (err) {
                     settled = true;
                     reject(err);
-                    const message = await getErrorMessage(err as any);
+                    const message = err instanceof Error ? err.message : String(err);
                     setTimeout(() => server.stop(), 500);
                     return new Response(`Authentication failed: ${message}`, { status: 400 });
                 }
