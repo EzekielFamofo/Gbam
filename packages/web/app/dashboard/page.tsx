@@ -104,7 +104,7 @@ export default async function DashboardPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <UserButton afterSignOutUrl="/" />
+                <UserButton />
                 <Link href="/get-started">
                   <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                     Use the CLI
