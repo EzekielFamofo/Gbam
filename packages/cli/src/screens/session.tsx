@@ -66,7 +66,7 @@ function SessionChat({
     void submit({
       userText: initialPrompt.message,
       mode: initialPrompt.mode,
-      model: initialPrompt.model,
+      model: startupModel,
     });
   }, [initialPrompt, submit]);
 
