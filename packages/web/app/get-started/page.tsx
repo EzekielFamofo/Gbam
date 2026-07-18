@@ -88,7 +88,7 @@ export default function GetStartedPage() {
                   Start in read-only (PLAN) or directly write (BUILD) modes to analyze or upgrade codebases.
                 </p>
               </div>
-              <ClientButton label="gbam --mode PLAN \"explain this codebase\"" />
+              <ClientButton label={`gbam --mode PLAN "explain this codebase"`} />
             </div>
           </div>
         </div>

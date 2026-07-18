@@ -86,9 +86,6 @@ export async function getAvailableCreditsBalance(customerExternalId: string) {
             externalId: customerExternalId,
         });
 
-        // 👇 Temporary Debug Logs
-        console.log("Polar External ID Sent:", customerExternalId);
-        console.log("Polar Active Meters found:", JSON.stringify(customerState.activeMeters, null, 2));
 
         const matchingMeters = customerState.activeMeters.filter(
             (meter) => meter.meterId === getPolarCreditsMeterId(),

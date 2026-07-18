@@ -41,7 +41,8 @@ function getTokenCounts(usage: LanguageModelUsage): TokenCounts {
         inputTokens < 0 ||
         outputTokens < 0
     ) {
-        throw new Error("Credit conversion requires input and output token counts");
+        console.error("Invalid token counts encountered:", { inputTokens, outputTokens });
+        throw new Error("Credit conversion requires valid input and output token counts");
     } 
 
     return {
