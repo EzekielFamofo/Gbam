@@ -1,20 +1,34 @@
-import { Mode, type ModeType } from "@gbam/shared";
+import { TextAttributes } from "@opentui/core";
+import { type ModeType } from "@gbam/shared";
+import { getModeAccent, getModeLabel, UI_THEME } from "src/lib/ui-theme";
+import { MessageFrame } from "./message-frame";
 
-// Component in AI conversation with user
-type Props ={
-    message:string;
-    mode: ModeType;
-}
-
-
-export function UserMessage({message,mode}: Props) {
-    return (
-        <box width="100%" alignItems="center">
-            <box border={["left"]} borderColor={mode === Mode.PLAN ? "#56D6C2" : "blue"} width="100%">
-                <box justifyContent="center" paddingX={2} paddingY={1} backgroundColor="#1A1A24" width="100%">
-                    <text >{message}</text>
-                </box>
-            </box>
-        </box>
-    );
+type Props = {
+  message: string;
+  mode: ModeType;
 };
+
+export function UserMessage({ message, mode }: Props) {
+  const accentColor = getModeAccent(mode);
+
+  return (
+    <MessageFrame
+      accentColor={accentColor}
+      backgroundColor={UI_THEME.surfaceElevated}
+      header={
+        <box flexDirection="row" gap={1}>
+          <text fg={accentColor} attributes={TextAttributes.BOLD}>
+            You
+          </text>
+          <text attributes={TextAttributes.DIM} fg={UI_THEME.textMuted}>
+            {getModeLabel(mode)}
+          </text>
+        </box>
+      }
+    >
+      <text width="100%" wrapMode="word">
+        {message}
+      </text>
+    </MessageFrame>
+  );
+}

@@ -47,15 +47,23 @@ export const SUPPORTED_CHAT_MODELS = [
         },
     },
     {
-        id: "gpt-4o-mini", // Economy flagship (~$0.15 / $0.60 USD)
+        id: "gpt-4.1", // Flagship (~$2.00 / $8.00 USD)
         provider: "openai",
         pricing: {
-            inputNgNPerMillionTokens: 210,   // 0.15 * 1400
-            outputNgNPerMillionTokens: 840,  // 0.60 * 1400
+            inputNgNPerMillionTokens: 2800,   // 2.00 * 1400
+            outputNgNPerMillionTokens: 11200, // 8.00 * 1400
         },
     },
     {
-        id: "o1", // Reasoning/High-intelligence (~$15.00 / $60.00 USD)
+        id: "gpt-5.4", // Reasoning/High-intelligence (~$15.00 / $60.00 USD)
+        provider: "openai",
+        pricing: {
+            inputNgNPerMillionTokens: 21000, // 15.00 * 1400
+            outputNgNPerMillionTokens: 84000, // 60.00 * 1400
+        },
+    },
+    {
+        id: "gpt-5-codex", // Reasoning/High-intelligence (~$15.00 / $60.00 USD)
         provider: "openai",
         pricing: {
             inputNgNPerMillionTokens: 21000, // 15.00 * 1400
@@ -71,4 +79,4 @@ export function findSupportedChatModel(modelId: string) {
     return SUPPORTED_CHAT_MODELS.find((model) => model.id === modelId);
 }
 
-export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "gpt-4o-mini";
+export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "gpt-4o";

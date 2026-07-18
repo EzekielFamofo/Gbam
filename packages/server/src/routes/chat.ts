@@ -59,8 +59,6 @@ const app = new Hono<AuthenticatedEnv>()
         requireCreditsBalance,
         async (c) => {
             const userId = c.get("userId");
-            console.log("DEBUG: Extracted User ID in route:", userId); // 👈 If this is undefined, it's Reason #1
-            
             const { id, messages, mode, model } = c.req.valid("json");
 
             const session = await db.session.findUnique({

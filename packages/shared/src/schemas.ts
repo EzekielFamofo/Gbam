@@ -57,7 +57,7 @@ export const readOnlyToolContracts = {
         inputSchema: toolInputSchemas.listDirectory,
     }),
     glob: tool({
-        description: "Find files matching a glob pattern under the current project directory.",
+        description: "Find files under the current project directory using a glob pattern or regex path filter.",
         inputSchema: toolInputSchemas.glob,
     }),
     grep: tool({

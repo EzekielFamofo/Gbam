@@ -12,7 +12,7 @@ import { Mode, modeSchema } from "@gbam/shared";
 const newSessionStateSchema = z.object({
     message: z.string(),
     mode: modeSchema,
-    model: z.string(),
+    model: z.string().optional(),
 });
 
 export function NewSession() {

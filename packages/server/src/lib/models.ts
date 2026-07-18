@@ -49,9 +49,26 @@ export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, Provid
         }
     },
     // OpenAI models
-    "gpt-4o": {},
-    "gpt-4o-mini": {},
-    "o1": {},
+    "gpt-4o": {
+        openai: {
+            reasoningEffort: "medium",
+        }
+    },
+    "gpt-4.1": {
+        openai: {
+            reasoningEffort: "medium",
+        }
+    },
+    "gpt-5-codex": {
+        openai: {
+            reasoningEffort: "high",
+        }
+    },
+    "gpt-5.4": {
+        openai: {
+            reasoningEffort: "high",
+        }
+    },
 };
 
 const openai = createOpenAI({

@@ -87,67 +87,113 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
         }
 
         case "glob": {
-            const { path, pattern } = toolInputSchemas.glob.parse(input);
+            const { path, pattern, include } = toolInputSchemas.glob.parse(input);
             const { resolved, cwd } = resolveInsideCwd(path);
-            const glob = new Bun.Glob(pattern);
+            const hasGlobSyntax = /[*?{}]/.test(pattern);
+            const looksLikeRegex = !hasGlobSyntax && /[()|^$[\]\\]/.test(pattern);
             const files: string[] = [];
             let truncated = false;
 
-            for await (const match of glob.scan({ cwd: resolved, dot: false, onlyFiles: true})) {
-                if (match.includes("node_modules")) continue;
-                if (files.length >= MAX_RESULTS) {
-                    truncated = true;
-                    break;
+            if (looksLikeRegex) {
+                let regex: RegExp;
+                try {
+                    regex = new RegExp(pattern);
+                } catch {
+                    throw new Error(`Invalid regex passed to glob.pattern: ${pattern}`);
                 }
-                files.push(relative(cwd, resolve(resolved, match)));
+
+                const candidateGlob = new Bun.Glob(include ?? "**/*");
+
+                for await (const match of candidateGlob.scan({ cwd: resolved, dot: false, onlyFiles: true })) {
+                    if (match.includes("node_modules")) continue;
+                    if (!regex.test(match)) {
+                        regex.lastIndex = 0;
+                        continue;
+                    }
+
+                    if (files.length >= MAX_RESULTS) {
+                        truncated = true;
+                        break;
+                    }
+
+                    files.push(relative(cwd, resolve(resolved, match)));
+                    regex.lastIndex = 0;
+                }
+            } else {
+                const fileGlob = new Bun.Glob(pattern);
+
+                for await (const match of fileGlob.scan({ cwd: resolved, dot: false, onlyFiles: true })) {
+                    if (match.includes("node_modules")) continue;
+                    if (files.length >= MAX_RESULTS) {
+                        truncated = true;
+                        break;
+                    }
+                    files.push(relative(cwd, resolve(resolved, match)));
+                }
             }
 
             files.sort();
-            return { files, ...(truncated ? { truncated: true} : {})};
+            return { files, ...(truncated ? { truncated: true } : {}) };
         }
         case "grep": {
-        const { pattern, path, include } = toolInputSchemas.grep.parse(input);
-        const { cwd, resolved } = resolveInsideCwd(path);
-        const args = [
-            "-rn",
-            "--color=never",
-            "--exclude-dir=node_modules",
-            "--exclude-dir=.git",
-            "-E",
-        ];
-        if (include) args.push(`--include=${include}`);
-        args.push(pattern, resolved);
+            const { pattern, path, include } = toolInputSchemas.grep.parse(input);
+            const { cwd, resolved } = resolveInsideCwd(path);
 
-        const proc = Bun.spawn(["grep", ...args], { cwd, stdout: "pipe", stderr: "pipe" });
-        const [stdout, stderr] = await Promise.all([
-            new Response(proc.stdout).text(),
-            new Response(proc.stderr).text(),
-        ]);
-        const exitCode = await proc.exited;
-
-        if (exitCode !== 0 && exitCode !== 1) throw new Error(`grep failed: ${stderr.trim()}`);
-        if (!stdout.trim()) return { matches: [], message: "No matches found" };
-
-        const lines = stdout.trim().split("\n");
-        const matches: { file: string; line: number; content: string }[] = [];
-        let truncated = false;
-
-        for (const line of lines) {
-            if (matches.length >= MAX_MATCHES) {
-            truncated = true;
-            break;
+            let regex: RegExp;
+            try {
+                regex = new RegExp(pattern);
+            } catch {
+                throw new Error(`Invalid grep regex: ${pattern}`);
             }
-            const match = line.match(/^(.+?):(\d+):(.*)$/);
-            if (match) {
-            matches.push({
-                file: relative(cwd, match[1]!),
-                line: Number(match[2]),
-                content: match[3]!,
-            });
-            }
-        }
 
-        return { matches, ...(truncated ? { truncated: true, totalMatches: lines.length } : {}) };
+            const scanGlob = new Bun.Glob(include ?? "**/*");
+            const matches: { file: string; line: number; content: string }[] = [];
+            let truncated = false;
+
+            for await (const relPath of scanGlob.scan({ cwd: resolved, dot: false, onlyFiles: true })) {
+                if (relPath.includes("node_modules") || relPath.includes(".git")) continue;
+
+                const absPath = resolve(resolved, relPath);
+
+                let content: string;
+                try {
+                    content = await readFile(absPath, "utf-8");
+                } catch {
+                    continue;
+                }
+
+                if (content.includes("\0")) continue;
+
+                const lines = content.split("\n");
+
+                for (let index = 0; index < lines.length; index++) {
+                    const line = lines[index]!;
+                    if (!regex.test(line)) {
+                        regex.lastIndex = 0;
+                        continue;
+                    }
+
+                    matches.push({
+                        file: relative(cwd, absPath),
+                        line: index + 1,
+                        content: line,
+                    });
+                    regex.lastIndex = 0;
+
+                    if (matches.length >= MAX_MATCHES) {
+                        truncated = true;
+                        break;
+                    }
+                }
+
+                if (truncated) break;
+            }
+
+            if (matches.length === 0) {
+                return { matches: [], message: "No matches found" };
+            }
+
+            return { matches, ...(truncated ? { truncated: true } : {}) };
         }
         case "writeFile": {
         const { path, content } = toolInputSchemas.writeFile.parse(input);

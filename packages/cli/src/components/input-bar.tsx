@@ -511,15 +511,15 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
 
     return ( // Here we run Command menu we have to pass on the attributes required by the component as defined in its file like query 
         <box width="100%" justifyContent="center">
-            <box border={["left"]} borderColor={mode === Mode.BUILD ? "blue" : "cyan"}>
-                <box position="relative" justifyContent="center" paddingX={2} paddingY={1} backgroundColor="#1A1A24" width="100%" gap={1}>
+            <box border={["left"]} borderColor={mode === Mode.PLAN ? "#56D6C2" : "#89B4FA"}>
+                <box position="relative" justifyContent="center" paddingX={2} paddingY={1} backgroundColor="#101720" width="100%" gap={1}>
                     {showCommandMenu && (// here is where it would only showw command menu when showwommandmenu is true
-                        <box position="absolute" bottom="100%" left={0} width="100%" backgroundColor="#1A1A24" zIndex={10}>
+                        <box position="absolute" bottom="100%" left={0} width="100%" backgroundColor="#101720" zIndex={10}>
                             <CommandMenu query={commandQuery} selectedIndex={selectedIndex} scrollRef={scrollRef} onSelect={setSelectedIndex} onExecute={handleCommandExecute}/>
                         </box>
                     )}  
                     {!showCommandMenu && showMentionMenu && (
-                        <box position="absolute" bottom="100%" left={0} width="100%" backgroundColor="#1A1A24" zIndex={10}>
+                        <box position="absolute" bottom="100%" left={0} width="100%" backgroundColor="#101720" zIndex={10}>
                             <FileMentionMenu candidates={mentionCandidates} selectedIndex={mentionSelectedIndex} scrollRef={mentionScrollRef} onSelect={setMentionSelectedIndex} onExecute={handleMentionExecute} />
                         </box>
                     )}

@@ -1,19 +1,24 @@
 import { TextAttributes } from "@opentui/core";
+import { MessageFrame } from "./message-frame";
+import { UI_THEME } from "src/lib/ui-theme";
 
-// Component for Ai conversation with user
-type Props ={
-    message:string;
-}
+type Props = {
+  message: string;
+};
 
-
-export function ErrorMessage({message}: Props) {
-    return (
-        <box width="100%" alignItems="center">
-            <box border={["left"]} borderColor="#E74C5E" width="100%">
-                <box justifyContent="center" paddingX={2} paddingY={1} backgroundColor="#1A1A24" width="100%">
-                    <text attributes={TextAttributes.DIM}>{message}</text>
-                </box>
-            </box>
-        </box>
-    )
+export function ErrorMessage({ message }: Props) {
+  return (
+    <MessageFrame
+      accentColor={UI_THEME.errorAccent}
+      header={
+        <text attributes={TextAttributes.BOLD} fg={UI_THEME.errorAccent}>
+          Problem
+        </text>
+      }
+    >
+      <text width="100%" wrapMode="word" attributes={TextAttributes.DIM}>
+        {message}
+      </text>
+    </MessageFrame>
+  );
 }
