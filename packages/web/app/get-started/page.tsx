@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Terminal, Copy, Check, Shield, Zap, Sparkles } from "lucide-react";
+import { ArrowLeft, Terminal, Check, Shield, Zap, Sparkles } from "lucide-react";
+import { ClientButton } from "./ClientButton";
 
 export default function GetStartedPage() {
   return (
@@ -50,15 +51,7 @@ export default function GetStartedPage() {
                 </p>
               </div>
               <div className="relative group">
-                <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4 font-mono text-sm text-primary">
-                  <span>npm i -g gbam-dev</span>
-                  <button 
-                    onClick={() => navigator.clipboard.writeText("npm i -g gbam-dev")} 
-                    className="p-1.5 rounded bg-muted hover:bg-muted-foreground/10 text-muted-foreground transition-colors"
-                  >
-                    <Copy className="size-4" />
-                  </button>
-                </div>
+                <ClientButton label="npm i -g gbam-dev" />
               </div>
             </div>
           </div>
@@ -77,15 +70,7 @@ export default function GetStartedPage() {
                   Connect your CLI with your dashboard account to sync context and sessions.
                 </p>
               </div>
-              <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4 font-mono text-sm text-primary">
-                <span>gbam login</span>
-                <button 
-                  onClick={() => navigator.clipboard.writeText("gbam login")} 
-                  className="p-1.5 rounded bg-muted hover:bg-muted-foreground/10 text-muted-foreground transition-colors"
-                >
-                  <Copy className="size-4" />
-                </button>
-              </div>
+              <ClientButton label="gbam login" />
             </div>
           </div>
 
@@ -103,15 +88,7 @@ export default function GetStartedPage() {
                   Start in read-only (PLAN) or directly write (BUILD) modes to analyze or upgrade codebases.
                 </p>
               </div>
-              <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4 font-mono text-sm text-primary">
-                <span>gbam --mode PLAN "explain this codebase"</span>
-                <button 
-                  onClick={() => navigator.clipboard.writeText("gbam --mode PLAN \"explain this codebase\"")} 
-                  className="p-1.5 rounded bg-muted hover:bg-muted-foreground/10 text-muted-foreground transition-colors"
-                >
-                  <Copy className="size-4" />
-                </button>
-              </div>
+              <ClientButton label="gbam --mode PLAN \"explain this codebase\"" />
             </div>
           </div>
         </div>
