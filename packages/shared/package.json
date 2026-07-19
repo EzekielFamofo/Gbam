@@ -1,7 +1,6 @@
 {
   "name": "@gbam/shared",
   "type": "module",
-  "private": true,
   "exports": {
     ".": "./src/index.ts"
   },

@@ -4,6 +4,7 @@ import { HTTPException } from 'hono/http-exception';
 import chat from "./routes/chat";
 import auth from "./routes/auth";
 import billing from "./routes/billing";
+import dashboard from "./routes/dashboard";
 import sessions from "./routes/sessions";
 import { requireAuth } from './middleware/require-auth';
 
@@ -16,7 +17,6 @@ const allowedOrigins = [
    "http://localhost:3001"
 ];
 
-// 1. Global Debug Logger (Ensures you see exactly what paths are hitting this server)
 app.use("*", async (c, next) => {
   console.log(`[BACKEND LOG] ${c.req.method} ${c.req.path}`);
   await next();
@@ -49,19 +49,18 @@ app.onError((error, c) => {
     return c.json({ error: "Internal server error" }, 500);
 });
 
-// 2. Fixed Wildcards: Using * instead of /* ensures the base path is also protected
 app.use("/billing/portal", requireAuth);
 app.use("/billing/checkout", requireAuth);
 
-// 3. Register Routes (If your frontend hits /api/chat, change "/chat" below to "/api/chat")
 const routes = app
     .route("/auth", auth)
     .route("/billing", billing)
+    .route("/dashboard", dashboard)
     .route("/sessions", sessions)
     .route("/chat", chat); 
 
 export type AppType = typeof routes;
 
-const port = Number(process.env.PORT) || 3001; // Railway injects PORT in prod; 3001 is just your local fallback
+const port = Number(process.env.PORT) || 3001;
 
 export default { port, fetch: app.fetch, idleTimeout: 225 };

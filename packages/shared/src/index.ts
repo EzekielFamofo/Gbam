@@ -16,3 +16,12 @@ export {
     type ToolContracts,
     type ModeType,
 } from "./schemas";
+
+export {
+    type DashboardResponse,
+    type DashboardSessionItem,
+    type DashboardSessionStatus,
+    type DashboardSummary,
+    type DashboardTransactionItem,
+    type DashboardTransactionType,
+} from "./dashboard";

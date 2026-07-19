@@ -49,11 +49,7 @@ export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, Provid
         }
     },
     // OpenAI models
-    "gpt-4o": {
-        openai: {
-            reasoningEffort: "medium",
-        }
-    },
+    "gpt-4o": {},
     "gpt-4.1": {
         openai: {
             reasoningEffort: "medium",

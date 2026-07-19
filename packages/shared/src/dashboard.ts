@@ -1,0 +1,36 @@
+import type { ModeType } from "./schemas";
+
+export type DashboardSummary = {
+  creditsBalance: number;
+  creditsUsedThisMonth: number;
+  lastCliActivityAt: string | null;
+};
+
+export type DashboardSessionStatus = "new" | "complete" | "waiting";
+
+export type DashboardSessionItem = {
+  id: string;
+  title: string;
+  lastMode: ModeType | null;
+  lastModel: string | null;
+  status: DashboardSessionStatus;
+  lastActivityAt: string | null;
+  creditsUsed: number;
+};
+
+export type DashboardTransactionType = "usage" | "purchase" | "adjustment";
+
+export type DashboardTransactionItem = {
+  id: string;
+  type: DashboardTransactionType;
+  creditsDelta: number;
+  description: string | null;
+  sessionId: string | null;
+  createdAt: string;
+};
+
+export type DashboardResponse = {
+  summary: DashboardSummary;
+  sessions: DashboardSessionItem[];
+  transactions: DashboardTransactionItem[];
+};

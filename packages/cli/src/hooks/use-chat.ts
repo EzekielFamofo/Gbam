@@ -53,7 +53,7 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
                         id: sessionId,
                         messages: requestMessages,
                         mode: message.metadata?.mode ?? metadata?.mode,
-                        model: message.metadata?.model ?? metadata?.model
+                        model: message.metadata?.model ?? metadata?.model ?? DEFAULT_CHAT_MODEL_ID
                     },
                 }
             }
