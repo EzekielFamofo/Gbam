@@ -14,60 +14,60 @@ type SupportedChatModelDefinition = {
 export const SUPPORTED_CHAT_MODELS = [
     // Google Models
     {
-        id: "gemini-3.5-flash", // Base tier pricing (~$0.15 / $0.60 USD)
+        id: "gemini-3.5-flash", // $1.50 / $9.00 USD
         provider: "google",
         pricing: {
-            inputNgNPerMillionTokens: 210,   // 0.15 * 1400
-            outputNgNPerMillionTokens: 840,  // 0.60 * 1400
+            inputNgNPerMillionTokens: 2100,   // 1.50 * 1400
+            outputNgNPerMillionTokens: 12600, // 9.00 * 1400
         },
     },
     {
-        id: "gemini-3-flash-preview", // Premium preview pricing (~$0.50 / $2.00 USD)
+        id: "gemini-3-flash-preview", // $0.50 / $3.00 USD
         provider: "google",
         pricing: {
-            inputNgNPerMillionTokens: 700,   // 0.50 * 1400
-            outputNgNPerMillionTokens: 2800, // 2.00 * 1400
+            inputNgNPerMillionTokens: 700,    // 0.50 * 1400
+            outputNgNPerMillionTokens: 4200,  // 3.00 * 1400
         },
     },
     {
-        id: "gemini-3.1-flash-lite", // Economy tier (~$0.05 / $0.20 USD)
+        id: "gemini-3.1-flash-lite", // $0.25 / $1.50 USD
         provider: "google",
         pricing: {
-            inputNgNPerMillionTokens: 70,    // 0.05 * 1400
-            outputNgNPerMillionTokens: 280,  // 0.20 * 1400
+            inputNgNPerMillionTokens: 350,    // 0.25 * 1400
+            outputNgNPerMillionTokens: 2100,  // 1.50 * 1400
         },
     },
     // OpenAI Models
     {
-        id: "gpt-4o", // Standard flagship (~$2.50 / $10.00 USD)
+        id: "gpt-4o", // $2.50 / $10.00 USD — unchanged
         provider: "openai",
         pricing: {
-            inputNgNPerMillionTokens: 3500,  // 2.50 * 1400
+            inputNgNPerMillionTokens: 3500,
+            outputNgNPerMillionTokens: 14000,
+        },
+    },
+    {
+        id: "gpt-4.1", // $2.00 / $8.00 USD — unchanged
+        provider: "openai",
+        pricing: {
+            inputNgNPerMillionTokens: 2800,
+            outputNgNPerMillionTokens: 11200,
+        },
+    },
+    {
+        id: "gpt-5.4", // $2.50 / $15.00 USD
+        provider: "openai",
+        pricing: {
+            inputNgNPerMillionTokens: 3500,   // 2.50 * 1400
+            outputNgNPerMillionTokens: 21000, // 15.00 * 1400
+        },
+    },
+    {
+        id: "gpt-5-codex", // $1.25 / $10.00 USD
+        provider: "openai",
+        pricing: {
+            inputNgNPerMillionTokens: 1750,   // 1.25 * 1400
             outputNgNPerMillionTokens: 14000, // 10.00 * 1400
-        },
-    },
-    {
-        id: "gpt-4.1", // Flagship (~$2.00 / $8.00 USD)
-        provider: "openai",
-        pricing: {
-            inputNgNPerMillionTokens: 2800,   // 2.00 * 1400
-            outputNgNPerMillionTokens: 11200, // 8.00 * 1400
-        },
-    },
-    {
-        id: "gpt-5.4", // Reasoning/High-intelligence (~$15.00 / $60.00 USD)
-        provider: "openai",
-        pricing: {
-            inputNgNPerMillionTokens: 21000, // 15.00 * 1400
-            outputNgNPerMillionTokens: 84000, // 60.00 * 1400
-        },
-    },
-    {
-        id: "gpt-5-codex", // Reasoning/High-intelligence (~$15.00 / $60.00 USD)
-        provider: "openai",
-        pricing: {
-            inputNgNPerMillionTokens: 21000, // 15.00 * 1400
-            outputNgNPerMillionTokens: 84000, // 60.00 * 1400
         },
     },
 ] as const satisfies readonly SupportedChatModelDefinition[];

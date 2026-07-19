@@ -22,10 +22,14 @@ type TokenCounts = {
 
 const TOKENS_PER_MILLION = 1_000_000;
 
-// gbam charges in internal credits. 
-// We peg 1 credit to $0.01 USD. 
-// At 1,400 NGN per USD, 1 credit = 14 NGN.
-const NGN_PER_CREDIT = 14;
+// What a customer pays when buying credits: 1 credit = $0.01 = ₦14.
+// Used for Polar product pricing / anything shown to the user — not for cost math below.
+const NGN_PER_CREDIT_SALE_PRICE = 14;
+
+// What raw model spend converts to internally when charging credits for usage.
+// Deliberately lower than sale price — the ₦10.5 gap per credit is gross margin
+// (75%) before payment processor fees, infra, and support costs.
+const NGN_PER_CREDIT_COST_BASIS = 3.5;
 
 function getTokenCounts(usage: LanguageModelUsage): TokenCounts {
     const inputTokens = usage.inputTokens;
@@ -75,7 +79,7 @@ function convertNgNToCredits(estimateCostNgN: number) {
         return 0;
     }
 
-    return Math.max(1, Math.ceil(estimateCostNgN / NGN_PER_CREDIT));
+    return Math.max(1, Math.ceil(estimateCostNgN / NGN_PER_CREDIT_COST_BASIS));
 };
 
 export function CalculateCreditsForUsage({ provider, model, usage, }: CalculateCreditsForUsageParams): BillableUsage {

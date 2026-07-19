@@ -128,6 +128,7 @@ const app = new Hono<AuthenticatedEnv>()
                 model: resolvedModel.model,
                 system: buildSystemPrompt({ mode }),
                 messages: modelMessages,
+                maxOutputTokens: 8000, 
                 tools,
                 providerOptions: resolvedModel.providerOptions,
                 onFinish(event) {
