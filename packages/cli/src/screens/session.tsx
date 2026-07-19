@@ -8,7 +8,12 @@ import { useToast } from "src/providers/toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getErrorMessage } from "src/lib/htttp-errors";
 import { useChat, type Message } from "src/hooks/use-chat";
-import { type ModeType, type SupportedChatModelId, DEFAULT_CHAT_MODEL_ID } from "@gbam/shared";
+import {
+  DEFAULT_CHAT_MODEL_ID,
+  findSupportedChatModel,
+  type ModeType,
+  type SupportedChatModelId,
+} from "@gbam/shared";
 import { useKeyboardLayer } from "src/providers/keyboard-layer";
 import { useKeyboard } from "@opentui/react";
 import { usePromptConfig } from "src/providers/prompt-config";
@@ -26,15 +31,19 @@ const sessionLocationSchema = z.object({
     .optional(),
 });
 
+function resolveSupportedModel(model: string | null | undefined): SupportedChatModelId | null {
+  return model && findSupportedChatModel(model) ? model : null;
+}
+
 function SessionChat({
   session,
   initialPrompt,
 }: {
   session: SessionData;
-  initialPrompt?: { message: string; mode: ModeType; model: SupportedChatModelId };
+  initialPrompt?: { message: string; mode: ModeType; model?: SupportedChatModelId };
 }) {
   const [initialMessages] = useState(() => session.messages as unknown as Message[]);
-  const { mode, setModel } = usePromptConfig();
+  const { mode, model, setModel } = usePromptConfig();
   const { isTopLayer } = useKeyboardLayer();
   const { messages, status, submit, abort, interrupt, error } = useChat(session.id, initialMessages);
   const hasSubmittedInitialPromptRef = useRef(false);
@@ -52,9 +61,15 @@ function SessionChat({
     }
   });
 
-  const startupModel = useMemo(() => {
-    return initialPrompt?.model ?? session.metadata?.lastUsedModel ?? DEFAULT_CHAT_MODEL_ID;
-  }, [initialPrompt, session.metadata]);
+  const startupModel = useMemo<SupportedChatModelId>(() => {
+    const initialModel = resolveSupportedModel(initialPrompt?.model);
+    if (initialModel) {
+      return initialModel;
+    }
+
+    const persistedModel = resolveSupportedModel(session.lastModel);
+    return persistedModel ?? DEFAULT_CHAT_MODEL_ID;
+  }, [initialPrompt?.model, session.lastModel]);
 
   useEffect(() => {
     setModel(startupModel);
@@ -63,12 +78,13 @@ function SessionChat({
   useEffect(() => {
     if (!initialPrompt || hasSubmittedInitialPromptRef.current) return;
     hasSubmittedInitialPromptRef.current = true;
+
     void submit({
       userText: initialPrompt.message,
       mode: initialPrompt.mode,
-      model: startupModel,
+      model: resolveSupportedModel(initialPrompt.model) ?? startupModel,
     });
-  }, [initialPrompt, submit]);
+  }, [initialPrompt, startupModel, submit]);
 
   const streamingAssistantMessageId = useMemo(() => {
     if (status !== "submitted" && status !== "streaming") {
@@ -87,9 +103,9 @@ function SessionChat({
 
   const handleSubmit = useCallback(
     (text: string) => {
-      return submit({ userText: text, mode, model: startupModel });
+      return submit({ userText: text, mode, model });
     },
-    [submit, mode, startupModel],
+    [submit, mode, model],
   );
 
   const loading = status === "submitted" || status === "streaming";

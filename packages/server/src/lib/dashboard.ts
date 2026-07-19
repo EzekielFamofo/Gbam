@@ -33,6 +33,11 @@ type TransactionRow = {
   createdAt: Date;
 };
 
+type CreditAccountSnapshotRow = {
+  providerBalanceCredits: number | null;
+  lastReconciledAt: Date | null;
+};
+
 function normalizeStatus(value: string | null): DashboardSessionStatus {
   if (value === "complete" || value === "waiting" || value === "new") {
     return value;
@@ -66,11 +71,29 @@ function toTransactionItem(transaction: TransactionRow): DashboardTransactionIte
 
 export async function getDashboardData(userId: string): Promise<DashboardResponse> {
   let creditsBalance = 0;
+  let lastCreditsSyncedAt: string | null = null;
+
   try {
     creditsBalance = await getAvailableCreditsBalance(userId);
     await syncProviderCreditsBalance(userId, creditsBalance);
+    lastCreditsSyncedAt = new Date().toISOString();
   } catch (error) {
     console.error("Failed to fetch live credits balance for dashboard", { error, userId });
+  }
+
+  if (lastCreditsSyncedAt == null) {
+    const accountRows = await db.$queryRaw<CreditAccountSnapshotRow[]>`
+      SELECT "providerBalanceCredits", "lastReconciledAt"
+      FROM "CreditAccount"
+      WHERE "userId" = ${userId}
+      LIMIT 1
+    `;
+
+    const account = accountRows[0];
+    if (account) {
+      creditsBalance = account.providerBalanceCredits ?? creditsBalance;
+      lastCreditsSyncedAt = account.lastReconciledAt?.toISOString() ?? null;
+    }
   }
 
   const sessions = await db.$queryRaw<SessionRow[]>`
