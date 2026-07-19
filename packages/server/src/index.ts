@@ -7,6 +7,7 @@ import billing from "./routes/billing";
 import dashboard from "./routes/dashboard";
 import sessions from "./routes/sessions";
 import { requireAuth } from './middleware/require-auth';
+import dashboardBilling from "./routes/dashboard-billing";
 
 const app = new Hono();
 
