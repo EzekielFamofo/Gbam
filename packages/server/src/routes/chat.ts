@@ -1,16 +1,17 @@
-import { getToolContracts, modeSchema, ModeType, ToolContracts } from "@gbam/shared"
-import { convertToModelMessages, InferUITools, LanguageModelUsage, streamText, UIMessage, safeValidateUIMessages } from "ai";
+import { getToolContracts, modeSchema, type ModeType, type ToolContracts } from "@gbam/shared"
+import { convertToModelMessages, InferUITools, type LanguageModelUsage, streamText, type UIMessage, safeValidateUIMessages } from "ai";
 import z from "zod";
 import { isSupportedChatModel, resolveChatModel } from "../lib/models";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { AuthenticatedEnv } from "../middleware/require-auth";
+import { type AuthenticatedEnv } from "../middleware/require-auth";
 import { requireCreditsBalance } from "../middleware/require-credits-balance";
+import { Prisma } from "@gbam/database";
 import { db } from "@gbam/database/client";
 import { buildSystemPrompt } from "../system-prompt";
-import { Prisma } from "../../../database/generated/prisma/client";
 import { CalculateCreditsForUsage } from "../lib/credits";
-import { IngestAiUsage } from "../lib/polar";
+import { recordUsageCreditTransaction } from "../lib/credits-ledger";
+import { getAvailableCreditsBalance, IngestAiUsage } from "../lib/polar";
 import { requireAuth } from "../middleware/require-auth";
 
 type ChatMessageMetadata = {
@@ -20,12 +21,12 @@ type ChatMessageMetadata = {
     usage?: LanguageModelUsage;
 };
 
-type gbamUIMessage = UIMessage<ChatMessageMetadata, never, InferUITools<ToolContracts>>;
+type GbamUIMessage = UIMessage<ChatMessageMetadata, never, InferUITools<ToolContracts>>;
 
 const submitSchema = z.object({
     id: z.string(),
     messages: z.array(
-        z.custom<gbamUIMessage>((value) => {
+        z.custom<GbamUIMessage>((value) => {
             return value !== null && typeof value === "object" && "id" in value && "parts" in value;
         }),
     ).min(1),
@@ -39,7 +40,7 @@ const submitValidator = zValidator("json", submitSchema, (result, c) => {
     }
 });
 
-function hasPendingToolCalls(message: gbamUIMessage) {
+function hasPendingToolCalls(message: GbamUIMessage) {
     return message.parts.some((part) => {
         if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
             const state = (part as { state?: string }).state;
@@ -49,7 +50,6 @@ function hasPendingToolCalls(message: gbamUIMessage) {
         return false;
     });
 };
-
 
 const app = new Hono<AuthenticatedEnv>()
     .use("*", requireAuth)
@@ -70,18 +70,19 @@ const app = new Hono<AuthenticatedEnv>()
             }
 
             const startTime = Date.now();
+            const summaryStartTime = new Date();
             const tools = getToolContracts(mode);
             const resolvedModel = resolveChatModel(model);
-            const prreviousMessages = Array.isArray(session.messages)
-                ? (session.messages as unknown as gbamUIMessage[])
+            const previousMessages = Array.isArray(session.messages)
+                ? (session.messages as unknown as GbamUIMessage[])
                 : [];
-            const mergedMessages =  [...prreviousMessages];
+            const mergedMessages = [...previousMessages];
 
             for (const message of messages) {
                 const incomingMessage = {
                     ...message,
                     metadata: { ...message.metadata, mode, model },
-                } satisfies gbamUIMessage;
+                } satisfies GbamUIMessage;
 
                 const existingMessageIndex = mergedMessages.findIndex((m) => m.id === incomingMessage.id)
 
@@ -92,11 +93,9 @@ const app = new Hono<AuthenticatedEnv>()
                 }
             }
 
-            // 1. Clean history to remove empty messages (Zod requires messages to have min 1 part)
             const cleanMergedMessages = mergedMessages.filter((m) => m.parts && m.parts.length > 0);
 
-            // 2. Safely validate the messages using safeValidateUIMessages
-            const validationResult = await safeValidateUIMessages<gbamUIMessage>({
+            const validationResult = await safeValidateUIMessages<GbamUIMessage>({
                 messages: cleanMergedMessages,
                 tools,
             });
@@ -114,6 +113,17 @@ const app = new Hono<AuthenticatedEnv>()
             const modelMessages = await convertToModelMessages(nextMessages, { tools });
             let completedUsage: LanguageModelUsage | null = null;
 
+            await db.$executeRaw`
+              UPDATE "Session"
+              SET
+                "lastMode" = ${mode},
+                "lastModel" = ${model},
+                "lastActivityAt" = ${summaryStartTime},
+                "status" = ${"waiting"},
+                "updatedAt" = ${summaryStartTime}
+              WHERE "id" = ${id} AND "userId" = ${userId}
+            `;
+
             const result = streamText({
                 model: resolvedModel.model,
                 system: buildSystemPrompt({ mode }),
@@ -125,7 +135,7 @@ const app = new Hono<AuthenticatedEnv>()
                 },
             });
 
-            return result.toUIMessageStreamResponse<gbamUIMessage>({
+            return result.toUIMessageStreamResponse<GbamUIMessage>({
                 originalMessages: nextMessages,
                 messageMetadata({ part }) {
                     if (part.type === "start") {
@@ -146,12 +156,25 @@ const app = new Hono<AuthenticatedEnv>()
 
                     if (hasPendingToolCalls(event.responseMessage)) return;
 
+                    const completedAt = new Date();
+
                     await db.session.update({
                         where: { id, userId},
                         data: {
                             messages: event.messages as unknown as Prisma.InputJsonValue,
                         },
                     });
+
+                    await db.$executeRaw`
+                      UPDATE "Session"
+                      SET
+                        "lastMode" = ${mode},
+                        "lastModel" = ${model},
+                        "lastActivityAt" = ${completedAt},
+                        "status" = ${"complete"},
+                        "updatedAt" = ${completedAt}
+                      WHERE "id" = ${id} AND "userId" = ${userId}
+                    `;
 
                     if (!completedUsage) return;
 
@@ -162,11 +185,43 @@ const app = new Hono<AuthenticatedEnv>()
                             usage: completedUsage,
                         });
 
+                        const providerReference = `chat-message:${event.responseMessage.id}`;
+
                         await IngestAiUsage({
                             externalCustomerId: userId,
-                            eventId: `chat-message:${event.responseMessage.id}`,
+                            eventId: providerReference,
                             credits: billableUsage.credits
                         });
+
+                        let providerBalanceCreditsAfter: number | null = null;
+                        try {
+                            providerBalanceCreditsAfter = await getAvailableCreditsBalance(userId);
+                        } catch (balanceError) {
+                            console.error("Failed to refresh provider balance after usage ingest", {
+                                balanceError,
+                                sessionId: id,
+                                messageId: event.responseMessage.id,
+                                userId,
+                            });
+                        }
+
+                        await recordUsageCreditTransaction({
+                            userId,
+                            sessionId: id,
+                            messageId: event.responseMessage.id,
+                            credits: billableUsage.credits,
+                            description: session.title,
+                            providerReference,
+                            providerBalanceCreditsAfter,
+                        });
+
+                        await db.$executeRaw`
+                          UPDATE "Session"
+                          SET
+                            "creditsUsed" = COALESCE("creditsUsed", 0) + ${billableUsage.credits},
+                            "updatedAt" = ${completedAt}
+                          WHERE "id" = ${id} AND "userId" = ${userId}
+                        `;
                     } catch (error) {
                         console.error("Faiiled to ingest Polar AI usage for chat message", {
                             error,

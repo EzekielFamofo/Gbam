@@ -41,3 +41,11 @@ export function formatRelativeDate(value: string | null) {
   const diffDays = Math.round(diffHours / 24);
   return rtf.format(diffDays, "day");
 }
+
+export function formatSyncStatus(value: string | null) {
+  if (!value) {
+    return "Waiting for first balance sync";
+  }
+
+  return `Last synced ${formatRelativeDate(value)}`;
+}

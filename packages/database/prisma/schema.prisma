@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -12,14 +7,64 @@ datasource db {
   provider = "postgresql"
 }
 
-
-model Session {
-  id        String    @id @default(cuid())
-  userId    String  
-  title     String  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  messages  Json      @default("[]")
-  @@index([userId])  
+enum CreditTransactionType {
+  usage
+  purchase
+  adjustment
+  sync
 }
 
+enum BillingProvider {
+  polar
+  paystack
+  internal
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  userId         String
+  title          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  messages       Json     @default("[]")
+  lastMode       String?
+  lastModel      String?
+  lastActivityAt DateTime?
+  status         String   @default("new")
+  creditsUsed    Int      @default(0)
+
+  @@index([userId])
+  @@index([lastActivityAt])
+}
+
+model CreditAccount {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  balanceCredits       Int      @default(0)
+  providerBalanceCredits Int?
+  balanceSource        String?
+  lastReconciledAt     DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now()) @updatedAt
+
+  @@index([updatedAt])
+}
+
+model CreditTransaction {
+  id                String                @id @default(cuid())
+  userId            String
+  type              CreditTransactionType
+  creditsDelta      Int
+  balanceAfter      Int?
+  sessionId         String?
+  messageId         String?
+  provider          BillingProvider       @default(polar)
+  providerReference String?
+  ledgerKey         String                @unique
+  description       String?
+  metadata          Json?
+  createdAt         DateTime              @default(now())
+
+  @@index([userId, createdAt])
+  @@index([sessionId])
+}

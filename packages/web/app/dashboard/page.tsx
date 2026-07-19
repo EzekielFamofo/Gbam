@@ -79,8 +79,13 @@ export default async function DashboardPage() {
 
             <div className="flex items-center gap-3">
               <UserButton />
-              <Link href="/get-started">
+              <Link href="/api/dashboard/checkout">
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Buy credits
+                </Button>
+              </Link>
+              <Link href="/get-started">
+                <Button variant="outline">
                   Open setup guide
                 </Button>
               </Link>

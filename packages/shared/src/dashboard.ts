@@ -4,6 +4,7 @@ export type DashboardSummary = {
   creditsBalance: number;
   creditsUsedThisMonth: number;
   lastCliActivityAt: string | null;
+  lastCreditsSyncedAt: string | null;
 };
 
 export type DashboardSessionStatus = "new" | "complete" | "waiting";

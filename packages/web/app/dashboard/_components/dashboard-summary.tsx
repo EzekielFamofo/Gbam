@@ -12,7 +12,7 @@ export function DashboardSummaryCards({ summary }: { summary: DashboardSummary }
         <p className="mt-3 font-display text-3xl font-semibold text-foreground">
           {formatCredits(summary.creditsBalance)}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">Live balance from your GBAM account</p>
+        <p className="mt-1 text-xs text-muted-foreground">{formatSyncStatus(summary.lastCreditsSyncedAt)}</p>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-5">
@@ -22,7 +22,7 @@ export function DashboardSummaryCards({ summary }: { summary: DashboardSummary }
         <p className="mt-3 font-display text-3xl font-semibold text-foreground">
           {formatCredits(summary.creditsUsedThisMonth)}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">Usage currently derived from completed CLI sessions</p>
+        <p className="mt-1 text-xs text-muted-foreground">Usage currently tracked through the internal GBAM ledger</p>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-5">

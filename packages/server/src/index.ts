@@ -56,6 +56,7 @@ const routes = app
     .route("/auth", auth)
     .route("/billing", billing)
     .route("/dashboard", dashboard)
+    .route("/dashboard-billing", dashboardBilling)
     .route("/sessions", sessions)
     .route("/chat", chat); 
 
