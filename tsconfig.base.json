@@ -25,6 +25,12 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+    "paths": {
+      "@gbam/database": ["./packages/database/src"],
+      "@gbam/database/*": ["./packages/database/src/*"],
+      "@gbam/shared": ["./packages/shared/src"],
+      "@gbam/shared/*": ["./packages/shared/src/*"]
+    }
   }
 }

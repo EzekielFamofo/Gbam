@@ -70,7 +70,21 @@ function compactMessagePart(
     return null;
   }
 
-  const basePart = part as Record<string, unknown>;
+  const basePart = { ...(part as Record<string, unknown>) };
+
+  // Strip provider metadata & options
+  delete basePart.providerMetadata;
+  delete basePart.providerOptions;
+  delete basePart.experimental_providerMetadata;
+
+  // Strip provider-assigned IDs from message parts if present
+  if (
+    typeof basePart.id === "string" &&
+    (basePart.id.startsWith("msg_") || basePart.id.startsWith("rs_") || basePart.id.startsWith("fc_"))
+  ) {
+    delete basePart.id;
+  }
+
   const partType = typeof basePart.type === "string" ? basePart.type : "";
 
   if (partType === "reasoning" || partType.startsWith("reasoning")) {
@@ -127,10 +141,28 @@ function compactMessage<TMessage extends AnyUIMessage>(
     return null;
   }
 
-  return {
+  // Cast through 'unknown' first to convert to Record<string, unknown>
+  const cleanMessage = {
     ...message,
     parts: compactedParts,
-  } as TMessage;
+  } as unknown as Record<string, unknown>;
+
+  // Strip provider metadata & options at top-level message
+  delete cleanMessage.providerMetadata;
+  delete cleanMessage.providerOptions;
+  delete cleanMessage.experimental_providerMetadata;
+
+  // Strip provider-assigned message IDs if present
+  if (
+    typeof cleanMessage.id === "string" &&
+    (cleanMessage.id.startsWith("msg_") ||
+      cleanMessage.id.startsWith("rs_") ||
+      cleanMessage.id.startsWith("fc_"))
+  ) {
+    delete cleanMessage.id;
+  }
+
+  return cleanMessage as unknown as TMessage;
 }
 
 function estimateSerializedSize(value: unknown) {

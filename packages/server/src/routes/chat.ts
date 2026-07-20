@@ -52,41 +52,71 @@ function hasPendingToolCalls(message: GbamUIMessage) {
 }
 
 /**
- * Sanitizes model messages to prevent OpenAI Responses API errors caused by
- * orphaned msg_* IDs whose linked rs_* reasoning items were compacted or stripped.
+ * Strips provider metadata and OpenAI-assigned msg_* response/reasoning IDs 
+ * before sending historical turns to the model.
  */
 function sanitizeModelMessages(messages: ModelMessage[]): ModelMessage[] {
     return messages.map((msg) => {
-        if (msg.role === "assistant") {
-            const cleanMsg = { ...msg } as Record<string, unknown>;
+        const cleanMsg = JSON.parse(JSON.stringify(msg)) as Record<string, unknown>;
 
-            // 1. Remove top-level OpenAI message ID if it starts with msg_
-            if (typeof cleanMsg.id === "string" && cleanMsg.id.startsWith("msg_")) {
-                delete cleanMsg.id;
-            }
+        delete cleanMsg.providerMetadata;
+        delete cleanMsg.providerOptions;
 
-            // 2. Remove provider-specific options and metadata
-            delete cleanMsg.providerMetadata;
-            delete cleanMsg.providerOptions;
-
-            // 3. Clean inner content parts if present
-            if (Array.isArray(cleanMsg.content)) {
-                cleanMsg.content = cleanMsg.content.map((part) => {
-                    if (part && typeof part === "object") {
-                        const cleanPart = { ...part } as Record<string, unknown>;
-                        delete cleanPart.providerMetadata;
-                        if (typeof cleanPart.id === "string" && cleanPart.id.startsWith("msg_")) {
-                            delete cleanPart.id;
-                        }
-                        return cleanPart;
-                    }
-                    return part;
-                });
-            }
-
-            return cleanMsg as ModelMessage;
+        if (typeof cleanMsg.id === "string" && cleanMsg.id.startsWith("msg_")) {
+            delete cleanMsg.id;
         }
-        return msg;
+
+        if (Array.isArray(cleanMsg.content)) {
+            cleanMsg.content = cleanMsg.content.map((part) => {
+                if (part && typeof part === "object") {
+                    const cleanPart = { ...part } as Record<string, unknown>;
+                    delete cleanPart.providerMetadata;
+                    delete cleanPart.providerOptions;
+
+                    if (typeof cleanPart.id === "string" && cleanPart.id.startsWith("msg_")) {
+                        delete cleanPart.id;
+                    }
+                    return cleanPart;
+                }
+                return part;
+            });
+        }
+
+        return cleanMsg as unknown as ModelMessage;
+    });
+}
+
+/**
+ * Strips provider metadata and msg_* IDs from UI messages before saving to Prisma DB.
+ */
+function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[] {
+    return messages.map((msg) => {
+        const cleanMsg = JSON.parse(JSON.stringify(msg)) as Record<string, unknown>;
+
+        delete cleanMsg.providerMetadata;
+        delete cleanMsg.providerOptions;
+
+        if (typeof cleanMsg.id === "string" && cleanMsg.id.startsWith("msg_")) {
+            delete cleanMsg.id;
+        }
+
+        if (Array.isArray(cleanMsg.parts)) {
+            cleanMsg.parts = cleanMsg.parts.map((part) => {
+                if (part && typeof part === "object") {
+                    const cleanPart = { ...part } as Record<string, unknown>;
+                    delete cleanPart.providerMetadata;
+                    delete cleanPart.providerOptions;
+
+                    if (typeof cleanPart.id === "string" && cleanPart.id.startsWith("msg_")) {
+                        delete cleanPart.id;
+                    }
+                    return cleanPart;
+                }
+                return part;
+            });
+        }
+
+        return cleanMsg as unknown as GbamUIMessage;
     });
 }
 
@@ -203,10 +233,15 @@ const app = new Hono<AuthenticatedEnv>()
 
                     const completedAt = new Date();
 
+                    // Strip any OpenAI IDs / metadata from event.messages before storing in Postgres
+                    const sanitizedMessages = sanitizeUIMessagesForStorage(
+                        event.messages as unknown as GbamUIMessage[]
+                    );
+
                     await db.session.update({
                         where: { id, userId},
                         data: {
-                            messages: compactConversationForSession(event.messages as unknown as GbamUIMessage[]) as unknown as Prisma.InputJsonValue,
+                            messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
                         },
                     });
 
