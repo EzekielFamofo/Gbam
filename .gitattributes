@@ -1,0 +1,4 @@
+# Force shell scripts and CLI binaries to ALWAYS use LF (Linux line endings)
+*.sh text eol=lf
+bin/* text eol=lf
+packages/cli/bin/gbam text eol=lf

@@ -6,18 +6,18 @@ import { Button } from "@/components/ui/button";
 
 const trustBadges = [
   "🔒 Set hard spending caps anytime in dashboard settings",
-  "💳 No credit card required — includes free trial tokens",
+  "💳 No dollar card required — pay straight in Naira",
 ];
 
 const comparisonStats = [
   {
     label: "Traditional AI Coding Subscriptions",
-    value: "$20.00 / month",
+    value: "₦28,000 / month",
     detail: "Fixed flat fee",
   },
   {
     label: "GBAM Average Developer Usage",
-    value: "~$3.20 / month",
+    value: "~₦4,500 / month",
     detail: "Pay strictly for exact token usage",
     highlight: true,
   },
@@ -27,7 +27,12 @@ const features = [
   {
     title: "🪙 Pay-As-You-Go Token Pricing",
     description:
-      "Forget $20/month flat fees. GBAM uses an internal token ledger so you only pay for what you actually use.",
+      "Forget ₦28,000/month flat fees. GBAM uses an internal token ledger so you only pay for what you actually use.",
+  },
+  {
+    title: "🇳🇬 Direct Naira Billing",
+    description:
+      "Get rid of the hassle of finding dollar cards and dealing with volatile exchange rates. Top up your balance directly in local currency.",
   },
   {
     title: "🔄 Seamless CLI + Web Dashboard Sync",
@@ -65,7 +70,7 @@ export default function Home() {
               </h1>
 
               <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground md:text-xl">
-                Stop burning $20/month on fixed subscriptions. GBAM pairs a lightning-fast CLI with a live web dashboard—tracking exact input/output tokens with zero markups or hidden caps.
+                Stop burning ₦28,000/month on fixed subscriptions. GBAM pairs a lightning-fast CLI with a live web dashboard—tracking exact input/output tokens while getting rid of the hassle of finding dollar cards and dealing with volatile exchange rates.
               </p>
 
               <div className="mx-auto mt-10 max-w-3xl">
