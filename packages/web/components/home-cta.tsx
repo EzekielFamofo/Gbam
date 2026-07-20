@@ -44,7 +44,7 @@ export function InstallCommandCard() {
           <p className="mt-1 text-sm text-muted-foreground">Copy the command and install GBAM from npm on macOS, Linux, or Windows.</p>
         </div>
         <div className="hidden rounded-full border border-border bg-black/30 px-3 py-1 text-xs text-muted-foreground sm:block">
-          macOS • Linux • WSL
+          macOS • Linux • Windows
         </div>
       </div>
 

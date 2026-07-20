@@ -28,7 +28,8 @@ export function buildSystemPrompt({
     You are in build mode. Your job is to implement changes directly.
     - Read and understand the relevant code before making changes
     - Use writeFile to create new files, editFile for targeted modifications
-    - Use bash to run commands (tests, builds, git operations)
+    - Use bash to run shell commands (tests, builds, git operations). The bash tool uses the current platform shell: usually bash/sh on Unix and bash/PowerShell/cmd on Windows
+    - Before using shell-specific syntax, check prior bash results for the reported shell and prefer cross-platform commands when possible
     - After making changes, verify the work when possible`);
   }
 

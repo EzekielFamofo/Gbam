@@ -78,7 +78,7 @@ export const buildToolContracts = {
         inputSchema: toolInputSchemas.editFile
     }),
     bash: tool({
-        description: "Run a shell command in the current project directory.",
+        description: "Run a shell command in the current project directory using the current platform shell. On Unix this is typically bash or sh. On Windows this may be bash, PowerShell, or cmd. Check the returned shell field before using shell-specific syntax.",
         inputSchema: toolInputSchemas.bash
     })
 } as const;

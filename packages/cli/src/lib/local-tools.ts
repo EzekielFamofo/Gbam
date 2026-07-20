@@ -226,11 +226,12 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
             const shellCandidates = isWindows
                 ? [
                     process.env.GBAM_SHELL,
+                    Bun.which("bash"),
+                    Bun.which("sh"),
                     Bun.which("pwsh"),
                     Bun.which("powershell"),
                     process.env.ComSpec,
                     Bun.which("cmd"),
-                    Bun.which("bash"),
                   ]
                 : [
                     process.env.GBAM_SHELL,
@@ -249,11 +250,15 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
                 );
             }
 
-            const shellArgs = isWindows
-                ? /(?:^|\\)(?:cmd(?:\.exe)?)$/i.test(shell)
-                    ? [shell, "/d", "/s", "/c", command]
-                    : [shell, "-Command", command]
-                : [shell, "-c", command];
+            const shellLower = shell.toLowerCase();
+            const isCmdShell = /(?:^|\\|\/)(?:cmd(?:\.exe)?)$/i.test(shellLower);
+            const isPowerShell = /(?:^|\\|\/)(?:pwsh|powershell)(?:\.exe)?$/i.test(shellLower);
+
+            const shellArgs = isCmdShell
+                ? [shell, "/d", "/s", "/c", command]
+                : isPowerShell
+                    ? [shell, "-Command", command]
+                    : [shell, "-c", command];
 
             const proc = Bun.spawn(shellArgs, {
                 cwd: resolveInsideCwd(".").resolved,
