@@ -44,23 +44,26 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
       },
       prepareSendMessagesRequest({ messages }) {
         const bufferedMessages = compactConversationForSession(messages);
-        const message = bufferedMessages[bufferedMessages.length - 1];
-        if (!message) throw new Error("No message to send");
+        const lastMessage = bufferedMessages[bufferedMessages.length - 1];
+        if (!lastMessage) throw new Error("No message to send");
 
-        const metadata = bufferedMessages.findLast((m) => m.metadata?.model)?.metadata;
-        const previousMessage = bufferedMessages[bufferedMessages.length - 2];
+        // Resolve mode and model independently across conversation history
+        const resolvedMode =
+          lastMessage.metadata?.mode ??
+          bufferedMessages.findLast((m) => m.metadata?.mode)?.metadata?.mode ??
+          "BUILD";
 
-        const requestMessages =
-          message.role === "assistant" && previousMessage?.role === "user"
-            ? [previousMessage, message]
-            : [message];
+        const resolvedModel =
+          lastMessage.metadata?.model ??
+          bufferedMessages.findLast((m) => m.metadata?.model)?.metadata?.model ??
+          DEFAULT_CHAT_MODEL_ID;
 
         return {
           body: {
             id: sessionId,
-            messages: requestMessages,
-            mode: message.metadata?.mode ?? metadata?.mode,
-            model: message.metadata?.model ?? metadata?.model ?? DEFAULT_CHAT_MODEL_ID,
+            messages: bufferedMessages, // Send full buffered stack for server DB merging
+            mode: resolvedMode,
+            model: resolvedModel,
           },
         };
       },
@@ -72,7 +75,9 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
     messages: initialMessages,
     transport,
     onToolCall({ toolCall }) {
-      const mode = chat.messages.at(-1)?.metadata?.mode ?? "BUILD";
+      // Find the active mode from the most recent message that defined it
+      const mode =
+        chat.messages.findLast((m) => m.metadata?.mode)?.metadata?.mode ?? "BUILD";
 
       void executeLocalTool(toolCall.toolName, toolCall.input, mode)
         .then((output) =>
@@ -83,11 +88,13 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
           }),
         )
         .catch((error) =>
+          // Return error structured in output so LLM can read and self-correct
           chat.addToolOutput({
             tool: toolCall.toolName as keyof ChatTools,
             toolCallId: toolCall.toolCallId,
-            state: "output-error",
-            errorText: error instanceof Error ? error.message : String(error),
+            output: {
+              error: error instanceof Error ? error.message : String(error),
+            },
           }),
         );
     },

@@ -5,7 +5,7 @@ import { performLogin } from "src/lib/oauth";
 import { clearAuth } from "src/lib/auth";
 import { openBillingPortal, openUpgradeCheckout } from "src/lib/upgrade";
 // defines the commands shown and their action, name and description are used in index.tsx
-
+// Portions of this file are derived from opencode (c) 2025 opencode under the MIT License.
 
 export const COMMANDS: Command[] = [
     {

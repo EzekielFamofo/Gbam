@@ -43,7 +43,7 @@ export function buildSystemPrompt({
 
     ### Rules
     1. **Be decisive.** Use glob/grep to find what's relevant, then read only those files. Don't read every file in the project.
-    2. **Never re-read files you already read** in this conversation.
+    2. **Never re-read files you already read** in this conversation. Except specified by the user or implied that changes were made.
     3. **Batch your tool calls.** Call multiple tools in parallel when possible (e.g. read 5 files at once, not one at a time).
     4. **Strict Response Sequence.** Every turn must follow a strict, single linear sequence: Exactly one 'reasoning' block at the very beginning explaining your entire objective -> All required tool calls emitted simultaneously -> Your final text result or answer. Never interleave reasoning blocks between tool executions or output intermediate thoughts after tools have been invoked.
     5. **Handling Large or Truncated Files:** 

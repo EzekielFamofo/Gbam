@@ -1,5 +1,5 @@
-import { compactConversationForSession, getToolContracts, modeSchema, type ModeType, type ToolContracts } from "@gbam/shared"
-import { convertToModelMessages, InferUITools, type LanguageModelUsage, streamText, type UIMessage, safeValidateUIMessages } from "ai";
+import { compactConversationForSession, getToolContracts, modeSchema, type ModeType, type ToolContracts } from "@gbam/shared";
+import { convertToModelMessages, InferUITools, type LanguageModelUsage, streamText, type UIMessage, safeValidateUIMessages, type ModelMessage } from "ai";
 import z from "zod";
 import { isSupportedChatModel, resolveChatModel } from "../lib/models";
 import { zValidator } from "@hono/zod-validator";
@@ -44,12 +44,27 @@ function hasPendingToolCalls(message: GbamUIMessage) {
     return message.parts.some((part) => {
         if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
             const state = (part as { state?: string }).state;
-            return state !== "output-available" && state !== "output-error"
+            return state !== "output-available" && state !== "output-error";
         }
 
         return false;
     });
-};
+}
+
+/**
+ * Sanitizes model messages to prevent OpenAI Responses API errors
+ * caused by orphaned msg_* IDs whose rs_* reasoning items were compacted.
+ */
+function sanitizeModelMessages(messages: ModelMessage[]): ModelMessage[] {
+    return messages.map((msg) => {
+        if (msg.role === "assistant") {
+            // Strip provider-specific options/IDs that attach raw OpenAI response IDs
+            const { providerOptions, ...cleanMsg } = msg as Record<string, unknown>;
+            return cleanMsg as ModelMessage;
+        }
+        return msg;
+    });
+}
 
 const app = new Hono<AuthenticatedEnv>()
     .use("*", requireAuth)
@@ -84,7 +99,7 @@ const app = new Hono<AuthenticatedEnv>()
                     metadata: { ...message.metadata, mode, model },
                 } satisfies GbamUIMessage;
 
-                const existingMessageIndex = mergedMessages.findIndex((m) => m.id === incomingMessage.id)
+                const existingMessageIndex = mergedMessages.findIndex((m) => m.id === incomingMessage.id);
 
                 if (existingMessageIndex === -1) {
                     mergedMessages.push(incomingMessage);
@@ -112,7 +127,10 @@ const app = new Hono<AuthenticatedEnv>()
 
             const nextMessages = validationResult.data;
 
-            const modelMessages = await convertToModelMessages(nextMessages, { tools });
+            // Convert UI messages to model messages & sanitize orphaned OpenAI IDs
+            const rawModelMessages = await convertToModelMessages(nextMessages, { tools });
+            const modelMessages = sanitizeModelMessages(rawModelMessages);
+
             let completedUsage: LanguageModelUsage | null = null;
 
             await db.$executeRaw`
@@ -142,7 +160,7 @@ const app = new Hono<AuthenticatedEnv>()
                 originalMessages: nextMessages,
                 messageMetadata({ part }) {
                     if (part.type === "start") {
-                        return {mode, model};
+                        return { mode, model };
                     }
 
                     if (part.type !== "finish") return undefined;
@@ -226,7 +244,7 @@ const app = new Hono<AuthenticatedEnv>()
                           WHERE "id" = ${id} AND "userId" = ${userId}
                         `;
                     } catch (error) {
-                        console.error("Faiiled to ingest Polar AI usage for chat message", {
+                        console.error("Failed to ingest Polar AI usage for chat message", {
                             error,
                             sessionId: id,
                             messageId: event.responseMessage.id,
@@ -235,7 +253,7 @@ const app = new Hono<AuthenticatedEnv>()
                     }
                 },
                 onError(error) {
-                    return error instanceof Error ? error.message : String(error)
+                    return error instanceof Error ? error.message : String(error);
                 },
             });
         },
