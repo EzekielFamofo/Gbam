@@ -1,4 +1,4 @@
-import { getToolContracts, modeSchema, type ModeType, type ToolContracts } from "@gbam/shared"
+import { compactConversationForSession, getToolContracts, modeSchema, type ModeType, type ToolContracts } from "@gbam/shared"
 import { convertToModelMessages, InferUITools, type LanguageModelUsage, streamText, type UIMessage, safeValidateUIMessages } from "ai";
 import z from "zod";
 import { isSupportedChatModel, resolveChatModel } from "../lib/models";
