@@ -52,14 +52,38 @@ function hasPendingToolCalls(message: GbamUIMessage) {
 }
 
 /**
- * Sanitizes model messages to prevent OpenAI Responses API errors
- * caused by orphaned msg_* IDs whose rs_* reasoning items were compacted.
+ * Sanitizes model messages to prevent OpenAI Responses API errors caused by
+ * orphaned msg_* IDs whose linked rs_* reasoning items were compacted or stripped.
  */
 function sanitizeModelMessages(messages: ModelMessage[]): ModelMessage[] {
     return messages.map((msg) => {
         if (msg.role === "assistant") {
-            // Strip provider-specific options/IDs that attach raw OpenAI response IDs
-            const { providerOptions, ...cleanMsg } = msg as Record<string, unknown>;
+            const cleanMsg = { ...msg } as Record<string, unknown>;
+
+            // 1. Remove top-level OpenAI message ID if it starts with msg_
+            if (typeof cleanMsg.id === "string" && cleanMsg.id.startsWith("msg_")) {
+                delete cleanMsg.id;
+            }
+
+            // 2. Remove provider-specific options and metadata
+            delete cleanMsg.providerMetadata;
+            delete cleanMsg.providerOptions;
+
+            // 3. Clean inner content parts if present
+            if (Array.isArray(cleanMsg.content)) {
+                cleanMsg.content = cleanMsg.content.map((part) => {
+                    if (part && typeof part === "object") {
+                        const cleanPart = { ...part } as Record<string, unknown>;
+                        delete cleanPart.providerMetadata;
+                        if (typeof cleanPart.id === "string" && cleanPart.id.startsWith("msg_")) {
+                            delete cleanPart.id;
+                        }
+                        return cleanPart;
+                    }
+                    return part;
+                });
+            }
+
             return cleanMsg as ModelMessage;
         }
         return msg;
