@@ -1,5 +1,8 @@
+"use client";
+
 import type { DashboardSessionItem } from "@gbam/shared";
 import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
+import { DeleteSessionButton } from "./delete-session-button";
 import { EmptyState } from "./empty-state";
 
 function formatStatus(status: DashboardSessionItem["status"]) {
@@ -11,6 +14,15 @@ function formatStatus(status: DashboardSessionItem["status"]) {
     default:
       return "New";
   }
+}
+
+function truncateSessionTitle(title: string, maxWords = 6) {
+  const words = title.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) {
+    return title;
+  }
+
+  return `${words.slice(0, maxWords).join(" ")}…`;
 }
 
 export function RecentSessions({ sessions }: { sessions: DashboardSessionItem[] }) {
@@ -37,7 +49,9 @@ export function RecentSessions({ sessions }: { sessions: DashboardSessionItem[] 
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-display text-base font-semibold text-foreground">{session.title}</p>
+                    <p className="font-display text-base font-semibold text-foreground" title={session.title}>
+                      {truncateSessionTitle(session.title)}
+                    </p>
                     {session.lastMode ? (
                       <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
                         {session.lastMode}
@@ -54,11 +68,14 @@ export function RecentSessions({ sessions }: { sessions: DashboardSessionItem[] 
                   </div>
                 </div>
 
-                <div className="text-left md:text-right">
-                  <p className="font-display text-lg font-semibold text-foreground">
-                    {formatCredits(session.creditsUsed)} credits
-                  </p>
-                  <p className="text-xs text-muted-foreground">Used in this session</p>
+                <div className="flex flex-col items-start gap-3 text-left md:items-end md:text-right">
+                  <div>
+                    <p className="font-display text-lg font-semibold text-foreground">
+                      {formatCredits(session.creditsUsed)} credits
+                    </p>
+                    <p className="text-xs text-muted-foreground">Used in this session</p>
+                  </div>
+                  <DeleteSessionButton sessionId={session.id} sessionTitle={session.title} />
                 </div>
               </div>
             </div>

@@ -7,7 +7,7 @@ export function formatDateTime(value: string | null) {
     return "No activity yet";
   }
 
-  return new Intl.DateTimeFormat("en-NG", {
+  return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));

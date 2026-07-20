@@ -93,7 +93,9 @@ const app = new Hono<AuthenticatedEnv>()
                 }
             }
 
-            const cleanMergedMessages = mergedMessages.filter((m) => m.parts && m.parts.length > 0);
+            const cleanMergedMessages = compactConversationForSession(
+                mergedMessages.filter((m) => m.parts && m.parts.length > 0),
+            );
 
             const validationResult = await safeValidateUIMessages<GbamUIMessage>({
                 messages: cleanMergedMessages,
@@ -162,7 +164,7 @@ const app = new Hono<AuthenticatedEnv>()
                     await db.session.update({
                         where: { id, userId},
                         data: {
-                            messages: event.messages as unknown as Prisma.InputJsonValue,
+                            messages: compactConversationForSession(event.messages as unknown as GbamUIMessage[]) as unknown as Prisma.InputJsonValue,
                         },
                     });
 

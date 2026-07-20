@@ -1,3 +1,5 @@
+"use client";
+
 import type { DashboardTransactionItem } from "@gbam/shared";
 import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
 import { EmptyState } from "./empty-state";

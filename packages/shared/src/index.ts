@@ -18,6 +18,15 @@ export {
 } from "./schemas";
 
 export {
+    compactConversationMessages,
+    compactConversationForModel,
+    compactConversationForSession,
+    MODEL_CONTEXT_COMPACTION_OPTIONS,
+    SESSION_HISTORY_COMPACTION_OPTIONS,
+    type ConversationCompactionOptions,
+} from "./conversation";
+
+export {
     type DashboardResponse,
     type DashboardSessionItem,
     type DashboardSessionStatus,
