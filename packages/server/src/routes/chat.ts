@@ -46,43 +46,7 @@ function hasPendingToolCalls(message: GbamUIMessage) {
             const state = (part as { state?: string }).state;
             return state !== "output-available" && state !== "output-error";
         }
-
         return false;
-    });
-}
-
-/**
- * Strips provider metadata and OpenAI-assigned msg_* response/reasoning IDs 
- * before sending historical turns to the model.
- */
-function sanitizeModelMessages(messages: ModelMessage[]): ModelMessage[] {
-    return messages.map((msg) => {
-        const cleanMsg = JSON.parse(JSON.stringify(msg)) as Record<string, unknown>;
-
-        delete cleanMsg.providerMetadata;
-        delete cleanMsg.providerOptions;
-
-        if (typeof cleanMsg.id === "string" && cleanMsg.id.startsWith("msg_")) {
-            delete cleanMsg.id;
-        }
-
-        if (Array.isArray(cleanMsg.content)) {
-            cleanMsg.content = cleanMsg.content.map((part) => {
-                if (part && typeof part === "object") {
-                    const cleanPart = { ...part } as Record<string, unknown>;
-                    delete cleanPart.providerMetadata;
-                    delete cleanPart.providerOptions;
-
-                    if (typeof cleanPart.id === "string" && cleanPart.id.startsWith("msg_")) {
-                        delete cleanPart.id;
-                    }
-                    return cleanPart;
-                }
-                return part;
-            });
-        }
-
-        return cleanMsg as unknown as ModelMessage;
     });
 }
 
@@ -120,6 +84,72 @@ function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[
     });
 }
 
+/**
+ * Option B: Synthetic Error Completion
+ * Scans all assistant tool calls and ensures every toolCallId has a matching tool response.
+ * If tool calls were interrupted or left pending in history/payload, this appends a synthetic
+ * tool error message to complete the lifecycle for OpenAI schema validity without losing state.
+ */
+function completeDanglingToolCalls(messages: ModelMessage[]): ModelMessage[] {
+    const validToolCalls = new Map<string, string>(); // toolCallId -> toolName
+    const respondedToolCalls = new Set<string>();
+
+    // Step 1: Collect emitted tool call IDs and existing tool result IDs
+    for (const msg of messages) {
+        if (msg.role === "assistant" && Array.isArray(msg.content)) {
+            for (const part of msg.content) {
+                if (
+                    typeof part === "object" &&
+                    part !== null &&
+                    "type" in part &&
+                    part.type === "tool-call" &&
+                    "toolCallId" in part
+                ) {
+                    const call = part as { toolCallId: string; toolName?: string };
+                    validToolCalls.set(call.toolCallId, call.toolName || "unknown_tool");
+                }
+            }
+        } else if (msg.role === "tool" && Array.isArray(msg.content)) {
+            for (const part of msg.content) {
+                if (
+                    typeof part === "object" &&
+                    part !== null &&
+                    "toolCallId" in part
+                ) {
+                    respondedToolCalls.add((part as { toolCallId: string }).toolCallId);
+                }
+            }
+        }
+    }
+
+    // Step 2: Find toolCallIds without a matching tool result
+    const unhandledIds = Array.from(validToolCalls.keys()).filter(
+        (id) => !respondedToolCalls.has(id)
+    );
+
+    // Filter out any completely empty content messages
+    const cleanedMessages = messages.filter(
+        (msg) => msg.content && (!Array.isArray(msg.content) || msg.content.length > 0)
+    );
+
+    if (unhandledIds.length === 0) {
+        return cleanedMessages;
+    }
+
+    // Step 3: Inject synthetic error tool results for missing tool responses
+    const syntheticToolMessage: ModelMessage = {
+        role: "tool",
+        content: unhandledIds.map((id) => ({
+            type: "tool-result",
+            toolCallId: id,
+            toolName: validToolCalls.get(id) || "unknown_tool",
+            result: { error: "Execution interrupted or tool execution cancelled." },
+        })) as any,
+    };
+
+    return [...cleanedMessages, syntheticToolMessage];
+}
+
 const app = new Hono<AuthenticatedEnv>()
     .use("*", requireAuth)
     .post(
@@ -135,7 +165,7 @@ const app = new Hono<AuthenticatedEnv>()
             });
 
             if (!session) {
-                return c.json({ error: "Session not found"}, 400);
+                return c.json({ error: "Session not found" }, 400);
             }
 
             const startTime = Date.now();
@@ -181,9 +211,9 @@ const app = new Hono<AuthenticatedEnv>()
 
             const nextMessages = validationResult.data;
 
-            // Convert UI messages to model messages & sanitize orphaned OpenAI IDs
+            // Convert UI messages to ModelMessages and complete any unhandled tool calls
             const rawModelMessages = await convertToModelMessages(nextMessages, { tools });
-            const modelMessages = sanitizeModelMessages(rawModelMessages);
+            const modelMessages = completeDanglingToolCalls(rawModelMessages);
 
             let completedUsage: LanguageModelUsage | null = null;
 
@@ -202,7 +232,6 @@ const app = new Hono<AuthenticatedEnv>()
                 model: resolvedModel.model,
                 system: buildSystemPrompt({ mode }),
                 messages: modelMessages,
-                maxOutputTokens: 8000, 
                 tools,
                 providerOptions: resolvedModel.providerOptions,
                 onFinish(event) {
@@ -223,7 +252,7 @@ const app = new Hono<AuthenticatedEnv>()
                         mode,
                         model,
                         durationMs: Date.now() - startTime,
-                        ...(completedUsage ? { usage: completedUsage }: {}),
+                        ...(completedUsage ? { usage: completedUsage } : {}),
                     };
                 },
                 async onFinish(event) {
@@ -233,13 +262,13 @@ const app = new Hono<AuthenticatedEnv>()
 
                     const completedAt = new Date();
 
-                    // Strip any OpenAI IDs / metadata from event.messages before storing in Postgres
+                    // Strip any provider metadata from event.messages before storing in Postgres
                     const sanitizedMessages = sanitizeUIMessagesForStorage(
                         event.messages as unknown as GbamUIMessage[]
                     );
 
                     await db.session.update({
-                        where: { id, userId},
+                        where: { id, userId },
                         data: {
                             messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
                         },

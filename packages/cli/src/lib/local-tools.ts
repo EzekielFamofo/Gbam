@@ -221,11 +221,45 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
         case "bash": {
             const { command, timeout = DEFAULT_TIMEOUT } = toolInputSchemas.bash.parse(input);
             
-            const proc = Bun.spawn(["bash", "-c", command], {
+            const env = { ...process.env, TERM: "dumb" };
+            const isWindows = process.platform === "win32";
+            const shellCandidates = isWindows
+                ? [
+                    process.env.GBAM_SHELL,
+                    Bun.which("pwsh"),
+                    Bun.which("powershell"),
+                    process.env.ComSpec,
+                    Bun.which("cmd"),
+                    Bun.which("bash"),
+                  ]
+                : [
+                    process.env.GBAM_SHELL,
+                    process.env.SHELL,
+                    Bun.which("bash"),
+                    "/bin/bash",
+                    Bun.which("sh"),
+                    "/bin/sh",
+                  ];
+
+            const shell = shellCandidates.find((candidate): candidate is string => Boolean(candidate));
+
+            if (!shell) {
+                throw new Error(
+                    "No supported shell was found. Set GBAM_SHELL to a valid shell path, or install bash, sh, PowerShell, or cmd."
+                );
+            }
+
+            const shellArgs = isWindows
+                ? /(?:^|\\)(?:cmd(?:\.exe)?)$/i.test(shell)
+                    ? [shell, "/d", "/s", "/c", command]
+                    : [shell, "-Command", command]
+                : [shell, "-c", command];
+
+            const proc = Bun.spawn(shellArgs, {
                 cwd: resolveInsideCwd(".").resolved,
                 stdout: "pipe",
                 stderr: "pipe",
-                env: { ...process.env, TERM: "dumb" },
+                env,
             });
 
             const timer = setTimeout(() => {

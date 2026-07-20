@@ -15,7 +15,7 @@ For installation and further details, refer to the additional sections.
 To install the Gbam CLI, run the following command:
 
 ```bash
-npm install -g @gbam
+npm install -g gbam-dev
 ```
 
 ## Usage

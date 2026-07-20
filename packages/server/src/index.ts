@@ -8,6 +8,7 @@ import dashboard from "./routes/dashboard";
 import sessions from "./routes/sessions";
 import { requireAuth } from './middleware/require-auth';
 import dashboardBilling from "./routes/dashboard-billing";
+import dashboardSessions from "./routes/dashboard-sessions";
 
 const app = new Hono();
 
@@ -58,6 +59,7 @@ const routes = app
     .route("/billing", billing)
     .route("/dashboard", dashboard)
     .route("/dashboard-billing", dashboardBilling)
+    .route("/dashboard-sessions", dashboardSessions)
     .route("/sessions", sessions)
     .route("/chat", chat); 
 
