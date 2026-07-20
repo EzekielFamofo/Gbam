@@ -32,9 +32,10 @@ const sessionLocationSchema = z.object({
 });
 
 function resolveSupportedModel(model: string | null | undefined): SupportedChatModelId | null {
-  return model && findSupportedChatModel(model) ? model : null;
+  if (!model) return null;
+  const match = findSupportedChatModel(model);
+  return match ? (model as SupportedChatModelId) : null;
 }
-
 function SessionChat({
   session,
   initialPrompt,

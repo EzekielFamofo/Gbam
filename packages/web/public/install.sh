@@ -32,16 +32,29 @@ if [ "${PLATFORM}" = "UNKNOWN:${OS}" ]; then
     exit 1
 fi
 
-# --- 2. Check for Package Manager / Runtime ---
+# --- 2. Check for Package Manager / Runtime (Auto-install Bun if missing) ---
 HAS_NPM=false
 HAS_BUN=false
 
-if command -v npm >/dev/null 2>&1; then
-    HAS_NPM=true
-fi
-
 if command -v bun >/dev/null 2>&1; then
     HAS_BUN=true
+elif command -v npm >/dev/null 2>&1; then
+    HAS_NPM=true
+else
+    echo -e "${CYAN}No Node.js or Bun detected. Auto-installing Bun runtime...${NC}"
+    curl -fsSL https://bun.sh/install | bash
+    
+    # Export Bun to the current script session's PATH
+    export BUN_INSTALL="$HOME/.bun"
+    export PATH="$BUN_INSTALL/bin:$PATH"
+    
+    if command -v bun >/dev/null 2>&1; then
+        HAS_BUN=true
+        echo -e "${GREEN}✓ Bun installed successfully.${NC}"
+    else
+        echo -e "${RED}Error: Failed to auto-install Bun. Please install Node.js or Bun manually.${NC}"
+        exit 1
+    fi
 fi
 
 # --- 3. Execute Global Installation ---
@@ -53,10 +66,6 @@ if [ "$HAS_BUN" = true ]; then
 elif [ "$HAS_NPM" = true ]; then
     echo "Using npm package manager..."
     npm install -g gbam-dev
-else
-    echo -e "${RED}Error: Neither Node.js (npm) nor Bun was found on your system.${NC}"
-    echo "Please install Node.js from https://nodejs.org and run this script again."
-    exit 1
 fi
 
 # --- 4. Verify Installation & Output Guidance ---
@@ -68,6 +77,7 @@ if command -v gbam >/dev/null 2>&1; then
     echo -e "  ${CYAN}gbam login${NC}"
     echo -e "  ${CYAN}gbam${NC}\n"
 else
-    echo -e "${RED}Installation complete, but 'gbam' command was not found in your current PATH.${NC}"
-    echo "Please restart your terminal or ensure your global npm/bun bin directory is in your PATH."
+    echo -e "${GREEN}Installation complete!${NC}"
+    echo -e "Please restart your terminal or run: ${CYAN}source ~/.bashrc${NC} (or ${CYAN}source ~/.zshrc${NC})"
+    echo -e "Then run: ${CYAN}gbam login${NC}"
 fi

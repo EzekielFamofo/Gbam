@@ -68,3 +68,19 @@ model CreditTransaction {
   @@index([userId, createdAt])
   @@index([sessionId])
 }
+
+model TokenLog {
+  id               String   @id @default(cuid())
+  provider         String   
+  model            String   
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  reasoningTokens  Int      @default(0) 
+  cachedTokens     Int      @default(0)
+  totalTokens      Int      @default(0)
+  latencyMs        Int
+  createdAt        DateTime @default(now())
+
+  @@index([provider])
+  @@index([createdAt])
+}

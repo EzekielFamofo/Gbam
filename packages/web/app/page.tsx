@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { DemoShowcase, InstallCommandCard } from "@/components/home-cta";
 import { Button } from "@/components/ui/button";
+import { FAQSection } from "@/components/faq";
 
 const trustBadges = [
   "🔒 Set hard spending caps anytime in dashboard settings",
@@ -153,7 +154,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section>
+        <section className="border-b border-border">
           <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-sm font-medium text-primary">CORE FEATURES</p>
@@ -178,6 +179,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <FAQSection />
       </main>
     </div>
   );

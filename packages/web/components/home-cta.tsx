@@ -4,7 +4,22 @@ import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const installCommand = "curl -fsSL https://gbam.dev/install.sh | bash";
+const INSTALL_METHODS = {
+  script: {
+    id: "script",
+    label: "install.sh",
+    command: "curl -fsSL https://gbam.dev/install.sh | bash",
+    badge: "macOS • Linux • Windows",
+  },
+  npm: {
+    id: "npm",
+    label: "npm",
+    command: "npm i -g gbam-dev",
+    badge: "Requires Node.js",
+  },
+} as const;
+
+type InstallMethodKey = keyof typeof INSTALL_METHODS;
 
 function fallbackCopy(text: string) {
   const textarea = document.createElement("textarea");
@@ -19,14 +34,17 @@ function fallbackCopy(text: string) {
 }
 
 export function InstallCommandCard() {
+  const [activeMethod, setActiveMethod] = useState<InstallMethodKey>("script");
   const [copied, setCopied] = useState(false);
+
+  const currentInstaller = INSTALL_METHODS[activeMethod];
 
   async function handleCopy() {
     try {
       if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(installCommand);
+        await navigator.clipboard.writeText(currentInstaller.command);
       } else {
-        fallbackCopy(installCommand);
+        fallbackCopy(currentInstaller.command);
       }
 
       setCopied(true);
@@ -38,19 +56,42 @@ export function InstallCommandCard() {
 
   return (
     <div className="rounded-2xl border border-primary/20 bg-card/85 p-3 shadow-[0_0_0_1px_rgba(57,255,136,0.08),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur">
-      <div className="mb-3 flex items-center justify-between gap-3 px-1">
+      <div className="mb-3 flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-medium tracking-[0.22em] text-primary uppercase">One-click install</p>
-          <p className="mt-1 text-sm text-muted-foreground">Copy the command and install GBAM from npm on macOS, Linux, or Windows.</p>
+          <p className="text-xs font-medium tracking-[0.22em] text-primary uppercase">Quick Install</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Choose your preferred installation method to set up GBAM.
+          </p>
         </div>
-        <div className="hidden rounded-full border border-border bg-black/30 px-3 py-1 text-xs text-muted-foreground sm:block">
-          macOS • Linux • Windows
+
+        {/* Method Switcher Tabs */}
+        <div className="flex items-center gap-1 rounded-xl border border-border bg-black/40 p-1 self-start sm:self-auto">
+          {(Object.keys(INSTALL_METHODS) as InstallMethodKey[]).map((key) => {
+            const isActive = activeMethod === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setActiveMethod(key);
+                  setCopied(false);
+                }}
+                className={`rounded-lg px-3 py-1.5 font-mono text-xs font-medium transition-all ${
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                }`}
+              >
+                {INSTALL_METHODS[key].label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-border bg-black/55 px-4 py-3 text-left font-mono text-sm text-primary">
-          <code className="block whitespace-nowrap">{installCommand}</code>
+          <code className="block whitespace-nowrap">{currentInstaller.command}</code>
         </div>
 
         <Button

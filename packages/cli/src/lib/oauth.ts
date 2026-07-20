@@ -63,8 +63,9 @@ export async function performLogin() {
                     const msg = url.searchParams.get("error_description") ?? error;
                     settled = true;
                     reject(new Error(msg));
-                    setTimeout(() => server.stop(), 500);
-                    return new Response(`Authentication failed: ${msg}`, { status: 400 });
+                    setTimeout(() => server.stop(), 1000);
+                    // Redirect browser to web app error page
+                    return Response.redirect(`${webUrl}/cli-success?error=${encodeURIComponent(msg)}`, 302);
                 }
 
                 const code = url.searchParams.get("code");
@@ -73,27 +74,23 @@ export async function performLogin() {
                 if (!code || !state) {
                     settled = true;
                     reject(new Error("Missing code or state"));
-                    setTimeout(() => server.stop(), 500);
-                    return new Response("Bad request", { status: 400 });
+                    setTimeout(() => server.stop(), 1000);
+                    return Response.redirect(`${webUrl}/cli-success?error=missing_params`, 302);
                 }
 
                 // Verify nonce from state
                 try {
                     const payload = decodeState(state);
-                    
                     if (payload.nonce !== nonce) throw new Error("State mismatch");
                 } catch (err) {
                     settled = true;
                     reject(err);
-                    setTimeout(() => server.stop(), 500);
-                    return new Response("Invalid State", { status: 400 });
+                    setTimeout(() => server.stop(), 1000);
+                    return Response.redirect(`${webUrl}/cli-success?error=invalid_state`, 302);
                 }
 
                 try {
-                    // This MUST exactly match the CLI_OAUTH_REDIRECT_URI set in your web/cli-auth/page.tsx
                     const redirectUri = `${apiUrl}/auth/callback`;
-                        console.log("Token exchange target:", `${clerkFrontendApi}/oauth/token`);
-                        console.log("redirect_uri:", redirectUri);
 
                     // Exchange authorization code for Clerk tokens
                     const tokenRes = await fetch(`${clerkFrontendApi}/oauth/token`, {
@@ -118,17 +115,21 @@ export async function performLogin() {
                     settled = true;
                     saveAuth({ token: tokenData.access_token });
                     resolve({ token: tokenData.access_token });
-                    setTimeout(() => server.stop(), 500);
-                    return new Response("Authenticated! You can close this tab.");
+                    
+                    // Stop local server after browser completes redirect
+                    setTimeout(() => server.stop(), 1000);
+
+                    // Redirect to your custom success page on gbam.dev
+                    return Response.redirect(`${webUrl}/cli-success`, 302);
 
                 } catch (err) {
                     settled = true;
                     reject(err);
                     const message = err instanceof Error ? err.message : String(err);
-                    setTimeout(() => server.stop(), 500);
-                    return new Response(`Authentication failed: ${message}`, { status: 400 });
+                    setTimeout(() => server.stop(), 1000);
+                    return Response.redirect(`${webUrl}/cli-success?error=${encodeURIComponent(message)}`, 302);
                 }
-           },
+            },
         });
 
         // Build state with port and nonce
@@ -141,7 +142,6 @@ export async function performLogin() {
 
         const state = encodeState({ port, nonce });
 
-        // Point the CLI to your custom Web Next.js application instead of Clerk directly
         const authorizeUrl = new URL(`${webUrl}/cli-auth`);
         authorizeUrl.searchParams.set("state", state);
         authorizeUrl.searchParams.set("code_challenge", codeChallenge);

@@ -1,5 +1,19 @@
-import { compactConversationForSession, getToolContracts, modeSchema, type ModeType, type ToolContracts } from "@gbam/shared";
-import { convertToModelMessages, InferUITools, type LanguageModelUsage, streamText, type UIMessage, safeValidateUIMessages, type ModelMessage } from "ai";
+import {
+    compactConversationForSession,
+    getToolContracts,
+    modeSchema,
+    type ModeType,
+    type ToolContracts,
+} from "@gbam/shared";
+import {
+    convertToModelMessages,
+    InferUITools,
+    type LanguageModelUsage,
+    streamText,
+    type UIMessage,
+    safeValidateUIMessages,
+    type ModelMessage,
+} from "ai";
 import z from "zod";
 import { isSupportedChatModel, resolveChatModel } from "../lib/models";
 import { zValidator } from "@hono/zod-validator";
@@ -51,7 +65,7 @@ function hasPendingToolCalls(message: GbamUIMessage) {
 }
 
 /**
- * Strips provider metadata and msg_* IDs from UI messages before saving to Prisma DB.
+ * Strips provider metadata and client IDs from UI messages before saving to Prisma DB.
  */
 function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[] {
     return messages.map((msg) => {
@@ -85,16 +99,13 @@ function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[
 }
 
 /**
- * Option B: Synthetic Error Completion
- * Scans all assistant tool calls and ensures every toolCallId has a matching tool response.
- * If tool calls were interrupted or left pending in history/payload, this appends a synthetic
- * tool error message to complete the lifecycle for OpenAI schema validity without losing state.
+ * Ensures every toolCallId from assistant output has a corresponding tool response.
+ * Handles cases where a local tool execution was interrupted or cancelled on the CLI.
  */
 function completeDanglingToolCalls(messages: ModelMessage[]): ModelMessage[] {
-    const validToolCalls = new Map<string, string>(); // toolCallId -> toolName
+    const validToolCalls = new Map<string, string>();
     const respondedToolCalls = new Set<string>();
 
-    // Step 1: Collect emitted tool call IDs and existing tool result IDs
     for (const msg of messages) {
         if (msg.role === "assistant" && Array.isArray(msg.content)) {
             for (const part of msg.content) {
@@ -122,12 +133,10 @@ function completeDanglingToolCalls(messages: ModelMessage[]): ModelMessage[] {
         }
     }
 
-    // Step 2: Find toolCallIds without a matching tool result
     const unhandledIds = Array.from(validToolCalls.keys()).filter(
         (id) => !respondedToolCalls.has(id)
     );
 
-    // Filter out any completely empty content messages
     const cleanedMessages = messages.filter(
         (msg) => msg.content && (!Array.isArray(msg.content) || msg.content.length > 0)
     );
@@ -136,7 +145,6 @@ function completeDanglingToolCalls(messages: ModelMessage[]): ModelMessage[] {
         return cleanedMessages;
     }
 
-    // Step 3: Inject synthetic error tool results for missing tool responses
     const syntheticToolMessage: ModelMessage = {
         role: "tool",
         content: unhandledIds.map((id) => ({
@@ -171,7 +179,10 @@ const app = new Hono<AuthenticatedEnv>()
             const startTime = Date.now();
             const summaryStartTime = new Date();
             const tools = getToolContracts(mode);
+
+            // Resolve model, provider, and options from lib/models.ts
             const resolvedModel = resolveChatModel(model);
+
             const previousMessages = Array.isArray(session.messages)
                 ? (session.messages as unknown as GbamUIMessage[])
                 : [];
@@ -211,7 +222,6 @@ const app = new Hono<AuthenticatedEnv>()
 
             const nextMessages = validationResult.data;
 
-            // Convert UI messages to ModelMessages and complete any unhandled tool calls
             const rawModelMessages = await convertToModelMessages(nextMessages, { tools });
             const modelMessages = completeDanglingToolCalls(rawModelMessages);
 
@@ -262,7 +272,6 @@ const app = new Hono<AuthenticatedEnv>()
 
                     const completedAt = new Date();
 
-                    // Strip any provider metadata from event.messages before storing in Postgres
                     const sanitizedMessages = sanitizeUIMessagesForStorage(
                         event.messages as unknown as GbamUIMessage[]
                     );
