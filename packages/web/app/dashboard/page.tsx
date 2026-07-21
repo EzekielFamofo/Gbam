@@ -1,18 +1,43 @@
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { SignIn, UserButton } from "@clerk/nextjs";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { ArrowLeft, ExternalLink, ShieldCheck, Terminal } from "lucide-react";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { DashboardSummaryCards } from "./_components/dashboard-summary";
-import { RecentSessions } from "./_components/recent-sessions";
-import { RecentTransactions } from "./_components/recent-transactions";
+import { LiveDashboard } from "./_components/live-dashboard";
 import { getDashboardData } from "@/lib/dashboard/get-dashboard";
 
 export default async function DashboardPage() {
   const { userId } = await auth();
+
   if (!userId) {
-    redirect("/");
+    return (
+      <div className="min-h-screen bg-background px-6 py-16 text-foreground selection:bg-primary/20">
+        <div className="mx-auto flex max-w-6xl justify-between gap-4">
+          <Link href="/" className="flex items-center gap-1 font-display text-lg font-semibold tracking-tight">
+            GBAM
+            <span className="text-primary motion-safe:animate-pulse">_</span>
+          </Link>
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <ArrowLeft className="size-4" /> Home
+            </Button>
+          </Link>
+        </div>
+
+        <div className="mx-auto mt-12 flex max-w-6xl justify-center">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-sm">
+            <div className="mb-6 space-y-2 text-center">
+              <p className="text-sm font-medium text-primary">Dashboard access</p>
+              <h1 className="font-display text-2xl font-semibold tracking-tight">Sign in to open your dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Use the same account you connect to the GBAM CLI so your sessions, credits, and billing stay in sync.
+              </p>
+            </div>
+            <SignIn forceRedirectUrl="/dashboard" fallbackRedirectUrl="/dashboard" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const user = await currentUser();
@@ -113,16 +138,7 @@ export default async function DashboardPage() {
             </div>
           </section>
         ) : (
-          <>
-            <section className="mt-6">
-              <DashboardSummaryCards summary={dashboardData.summary} />
-            </section>
-
-            <section className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-              <RecentSessions sessions={dashboardData.sessions} />
-              <RecentTransactions transactions={dashboardData.transactions} />
-            </section>
-          </>
+          <LiveDashboard initialData={dashboardData} />
         )}
       </main>
     </div>

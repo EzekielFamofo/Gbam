@@ -4,6 +4,7 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/docs(.*)",
   "/get-started(.*)",
+  "/dashboard(.*)",
   "/cli-auth(.*)",
   "/auth/callback(.*)",
   "/api/cli-auth/continue(.*)",
