@@ -4,6 +4,7 @@ import type { DashboardSessionItem } from "@gbam/shared";
 import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
 import { DeleteSessionButton } from "./delete-session-button";
 import { EmptyState } from "./empty-state";
+import { RenameSessionButton } from "./rename-session-button";
 
 function formatStatus(status: DashboardSessionItem["status"]) {
   switch (status) {
@@ -52,6 +53,7 @@ export function RecentSessions({ sessions }: { sessions: DashboardSessionItem[] 
                     <p className="font-display text-base font-semibold text-foreground" title={session.title}>
                       {truncateSessionTitle(session.title)}
                     </p>
+                    <RenameSessionButton sessionId={session.id} sessionTitle={session.title} />
                     {session.lastMode ? (
                       <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
                         {session.lastMode}
