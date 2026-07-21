@@ -17,7 +17,7 @@ import {
 import { apiClient } from "../lib/api-client";
 import { getAuth } from "../lib/auth";
 import { ensureRootAgentsFile } from "../lib/ensure-root-agents-file";
-import { executeLocalTool } from "../lib/local-tools";
+import { executeLocalTool, getAgentsMdHash } from "../lib/local-tools";
 
 export type ChatMessageMetadata = {
   mode?: ModeType;
@@ -43,7 +43,7 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
         const auth = getAuth();
         return auth ? { Authorization: `Bearer ${auth.token}` } : new Headers();
       },
-      prepareSendMessagesRequest({ messages }) {
+      async prepareSendMessagesRequest({ messages }) {
         const bufferedMessages = compactConversationForSession(messages);
         const lastMessage = bufferedMessages[bufferedMessages.length - 1];
         if (!lastMessage) throw new Error("No message to send");
@@ -58,12 +58,16 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
           bufferedMessages.findLast((m) => m.metadata?.model)?.metadata?.model ??
           DEFAULT_CHAT_MODEL_ID;
 
+        // Compute and include the hash of AGENTS.md dynamically on every request
+        const agentsMdHash = await getAgentsMdHash();
+
         return {
           body: {
             id: sessionId,
             messages: bufferedMessages,
             mode: resolvedMode,
             model: resolvedModel,
+            agentsMdHash,
           },
         };
       },
