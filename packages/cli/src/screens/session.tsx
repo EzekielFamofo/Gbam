@@ -3,8 +3,10 @@ import { SessionShell } from "../components/session-shell";
 import { apiClient } from "src/lib/api-client";
 import z from "zod";
 import { ErrorMessage, TranscriptMessage } from "src/components/messages";
+import { RenameSessionDialogContent } from "src/components/dialogs/rename-session-dialog";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useToast } from "src/providers/toast";
+import { useDialog } from "src/providers/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getErrorMessage } from "src/lib/htttp-errors";
 import { useChat, type Message } from "src/hooks/use-chat";
@@ -36,16 +38,20 @@ function resolveSupportedModel(model: string | null | undefined): SupportedChatM
   const match = findSupportedChatModel(model);
   return match ? (model as SupportedChatModelId) : null;
 }
+
 function SessionChat({
   session,
   initialPrompt,
+  onRenameSession,
 }: {
   session: SessionData;
   initialPrompt?: { message: string; mode: ModeType; model?: SupportedChatModelId };
+  onRenameSession: (newTitle: string) => Promise<void>;
 }) {
   const [initialMessages] = useState(() => session.messages as unknown as Message[]);
   const { mode, model, setModel } = usePromptConfig();
   const { isTopLayer } = useKeyboardLayer();
+  const dialog = useDialog();
   const { messages, status, submit, abort, interrupt, error } = useChat(session.id, initialMessages);
   const hasSubmittedInitialPromptRef = useRef(false);
 
@@ -59,6 +65,20 @@ function SessionChat({
     if (key.name === "escape" && isTopLayer("base") && status === "streaming") {
       key.preventDefault();
       interrupt();
+    }
+
+    
+  if ((key.ctrl || key.meta) && key.name === "r" && isTopLayer("base")) {
+      key.preventDefault();
+      dialog.open({
+        title: "Rename Session",
+        children: (
+          <RenameSessionDialogContent
+            currentTitle={session.title}
+            onSubmit={onRenameSession}
+          />
+        ),
+      });
     }
   });
 
@@ -171,9 +191,47 @@ export function Session() {
     };
   }, [id, prefetched, toast, navigate]);
 
+  const handleRenameSession = useCallback(
+    async (newTitle: string) => {
+      if (!session) return;
+
+      try {
+        const res = await apiClient.sessions[":id"].$patch({
+          param: { id: session.id },
+          json: { title: newTitle },
+        });
+
+        if (!res.ok) {
+          throw new Error(await getErrorMessage(res));
+        }
+
+        const updated = await res.json();
+        setSession((prev) => (prev ? { ...prev, title: updated.title } : null));
+
+        toast.show({
+          variant: "info",
+          message: "Session renamed successfully",
+        });
+      } catch (err) {
+        toast.show({
+          variant: "error",
+          message: err instanceof Error ? err.message : "Failed to rename session",
+        });
+      }
+    },
+    [session, toast],
+  );
+
   if (!session) {
     return <SessionShell onSubmit={() => {}} inputDisabled loading />;
   }
 
-  return <SessionChat key={session.id} session={session} initialPrompt={prefetched?.initialPrompt} />;
+  return (
+    <SessionChat
+      key={session.id}
+      session={session}
+      initialPrompt={prefetched?.initialPrompt}
+      onRenameSession={handleRenameSession}
+    />
+  );
 }

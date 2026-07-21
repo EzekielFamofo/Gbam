@@ -37,6 +37,11 @@ function SessionFooterComponent({ loading = false, interruptible = false }: Prop
         <text attributes={TextAttributes.DIM} fg={UI_THEME.textMuted}>
           agents
         </text>
+        <text>ctrl R</text>
+        <text attributes={TextAttributes.DIM} fg={UI_THEME.textMuted}>
+          Rename Session
+        </text>
+        
       </box>
     </box>
   );

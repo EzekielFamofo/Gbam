@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useChat as useAiChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -47,7 +47,6 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
         const lastMessage = bufferedMessages[bufferedMessages.length - 1];
         if (!lastMessage) throw new Error("No message to send");
 
-        // Resolve mode and model independently across conversation history
         const resolvedMode =
           lastMessage.metadata?.mode ??
           bufferedMessages.findLast((m) => m.metadata?.mode)?.metadata?.mode ??
@@ -61,7 +60,7 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
         return {
           body: {
             id: sessionId,
-            messages: bufferedMessages, // Send full buffered stack for server DB merging
+            messages: bufferedMessages,
             mode: resolvedMode,
             model: resolvedModel,
           },
@@ -75,7 +74,6 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
     messages: initialMessages,
     transport,
     onToolCall({ toolCall }) {
-      // Find the active mode from the most recent message that defined it
       const mode =
         chat.messages.findLast((m) => m.metadata?.mode)?.metadata?.mode ?? "BUILD";
 
@@ -88,7 +86,6 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
           }),
         )
         .catch((error) =>
-          // Return error structured in output so LLM can read and self-correct
           chat.addToolOutput({
             tool: toolCall.toolName as keyof ChatTools,
             toolCallId: toolCall.toolCallId,
@@ -100,6 +97,22 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
     },
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
+
+  const renameSession = useCallback(
+    async (title: string) => {
+      const res = await apiClient.sessions[":id"].$patch({
+        param: { id: sessionId },
+        json: { title },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to rename session");
+      }
+
+      return await res.json();
+    },
+    [sessionId],
+  );
 
   return {
     messages: chat.messages,
@@ -116,5 +129,6 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
     },
     abort: chat.stop,
     interrupt: chat.stop,
+    renameSession,
   };
 }

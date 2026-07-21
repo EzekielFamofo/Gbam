@@ -5,51 +5,53 @@ import { getFilteredCommands } from "./filter-commands";
 import { useKeyboard } from "@opentui/react";
 import { useKeyboardLayer } from "../../providers/keyboard-layer";
 
-type UseCommandMenuReturn = { // Because I am using typescript have to define attributes for new consts or 'variables' that we use
+type UseCommandMenuReturn = {
     showCommandMenu: boolean;
-    commandQuery:string;
+    commandQuery: string;
     selectedIndex: number;
+    filteredCommands: Command[]; // Expose filtered commands so UI renders costTier & thinking options
     scrollRef: RefObject<ScrollBoxRenderable | null>;
     handleContentChange: (text: string) => void;
-    resolveCommand: (index:number) => Command | undefined;
-    setSelectedIndex: (index:number) => void;
+    resolveCommand: (index: number) => Command | undefined;
+    setSelectedIndex: (index: number) => void;
 };
 
 export function useCommandMenu(): UseCommandMenuReturn {
-    const [textValue, setTextValue] = useState(""); // Tracks what user has typed 
-    const [selectedIndex, setSelectedIndex] = useState(0);// tracks what the user is hovering over
-    const [showCommandMenu, setShowCommandMenu] = useState(false);// sets whether command menu component should be shown
+    const [textValue, setTextValue] = useState("");
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const [showCommandMenu, setShowCommandMenu] = useState(false);
     const scrollRef = useRef<ScrollBoxRenderable>(null);
-    const  {push, pop, isTopLayer} = useKeyboardLayer();
+    const { push, pop, isTopLayer } = useKeyboardLayer();
 
-    const commandQuery = showCommandMenu && textValue.startsWith("/") ? textValue.slice(1) :""; //tracks what the user typed after /, show command menu must be true and usser input must start with / then it would extract what comes after the / if  not just show ""
+    const commandQuery = showCommandMenu && textValue.startsWith("/") ? textValue.slice(1) : "";
+    const filteredCommands = useMemo(() => getFilteredCommands(commandQuery), [commandQuery]);
 
-    const filteredCommands = useMemo(() => getFilteredCommands(commandQuery), [commandQuery]);// gets the user input and use our function 'getfilteredcommands' to filter 
-    // handles change in user input
     const handleContentChange = (text: string) => {
         setTextValue(text);
         setSelectedIndex(0);
 
-        // Jump back to the top of the list when the user types a new character
         const scrollbox = scrollRef.current;
         if (scrollbox) {
-            scrollbox.scrollTo(0)
+            scrollbox.scrollTo(0);
         }
-        // only shows the command menu if the user input starts with / and the prefix does not include a blank space after /
-        const prefix = text.startsWith("/") ? text.slice(1) : null; //checks if it starts with /, if so does like the above commandquery
+
+        const prefix = text.startsWith("/") ? text.slice(1) : null;
         if (prefix !== null && !prefix.includes(" ")) {
-            setShowCommandMenu(true);
-            push("command", () => {// puts it to the top layer
-                setShowCommandMenu(false);
-                pop("command") // removes from the array
-                return true;
-            });
-        } else {
+            // Only push to keyboard layer stack if menu wasn't already open
+            if (!showCommandMenu) {
+                setShowCommandMenu(true);
+                push("command", () => {
+                    setShowCommandMenu(false);
+                    pop("command");
+                    return true;
+                });
+            }
+        } else if (showCommandMenu) {
             setShowCommandMenu(false);
-            pop("command")
+            pop("command");
         }
     };
-    // Resolve a command at a specific index ( returns the command, caller hanles executing)
+
     const resolveCommand = (index: number): Command | undefined => {
         const command = filteredCommands[index];
         if (command) {
@@ -59,9 +61,8 @@ export function useCommandMenu(): UseCommandMenuReturn {
         return command;
     };
 
-    // Arrow keys move selection; the list follows along when the highlight goes off-screen
     useKeyboard((key) => {
-        if(!showCommandMenu || !isTopLayer("command")) return;// does not register the escape key if command menu is not top layer
+        if (!showCommandMenu || !isTopLayer("command")) return;
 
         if (key.name === "escape") {
             key.preventDefault();
@@ -70,44 +71,40 @@ export function useCommandMenu(): UseCommandMenuReturn {
         } else if (key.name === "up") {
             key.preventDefault();
             setSelectedIndex((i: number) => {
-                const newIndex = Math.max(0,i - 1)
-                //this is so that when it reaches the top of the visible commands if thats not index 0, it scrolls to the next index
+                const newIndex = Math.max(0, i - 1);
                 const sb = scrollRef.current;
                 if (sb && newIndex < sb.scrollTop) {
                     sb.scrollTo(newIndex);
                 }
                 return newIndex;
             });
-            // Basically the same thing as above a bit more complicated but trying to create a similar effect
         } else if (key.name === "down") {
             key.preventDefault();
-            setSelectedIndex((i : number) => {
-                if (filteredCommands.length === 0) {
-                    return 0;
-                }
+            setSelectedIndex((i: number) => {
+                if (filteredCommands.length === 0) return 0;
 
-                const newIndex = Math.min(filteredCommands.length - 1, i +1);
+                const newIndex = Math.min(filteredCommands.length - 1, i + 1);
                 const sb = scrollRef.current;
                 if (sb) {
                     const viewportHeight = sb.viewport.height;
                     const visibleEnd = sb.scrollTop + viewportHeight - 1;
                     if (newIndex > visibleEnd) {
-                        sb.scrollTo(newIndex- viewportHeight + 1);
+                        sb.scrollTo(newIndex - viewportHeight + 1);
                     }
                 }
-                return newIndex;// prevents error with i
+                return newIndex;
             });
-        };
+        }
     });
 
     return {
         showCommandMenu,
         commandQuery,
         selectedIndex,
+        filteredCommands,
         scrollRef,
         handleContentChange,
         resolveCommand,
         setSelectedIndex,
     };
-};
-
+}
