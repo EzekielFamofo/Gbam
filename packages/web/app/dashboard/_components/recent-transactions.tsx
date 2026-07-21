@@ -5,7 +5,7 @@ import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
 import { EmptyState } from "./empty-state";
 
 function getTransactionTitle(transaction: DashboardTransactionItem) {
-  return transaction.sessionTitle ?? transaction.description ?? "CLI usage";
+  return  transaction.description ?? "CLI usage";
 }
 
 export function RecentTransactions({ transactions }: { transactions: DashboardTransactionItem[] }) {
