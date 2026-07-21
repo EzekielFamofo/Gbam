@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "path";
 import { toolInputSchemas, Mode, type ModeType } from "@gbam/shared";
@@ -8,6 +9,7 @@ const MAX_RESULTS = 400;
 const MAX_MATCHES = 100;         
 const MAX_OUTPUT = 60_000;      
 const DEFAULT_TIMEOUT = 45_000;  
+const AGENTS_MD_FILENAME = "AGENTS.md";
 
 function resolveInsideCwd(path: string) {
     const cwd = process.cwd();
@@ -25,6 +27,26 @@ function truncate(value: string, limit: number) {
     return value.length > limit
         ? `${value.slice(0, limit)}\n... (truncated, ${value.length} total chars)`
         : value;
+}
+
+/**
+ * Computes a stable hash of the project's AGENTS.md, if one exists at the
+ * repo root. Call this once per outgoing request (right before POSTing to
+ * the server's chat route) and send the result as `agentsMdHash` - the
+ * server compares it against the last hash it saw for this session to
+ * decide whether to tell the agent the file has changed.
+ *
+ * Returns undefined if there's no AGENTS.md, so the field can be omitted
+ * from the request entirely in that case.
+ */
+export async function getAgentsMdHash(): Promise<string | undefined> {
+    try {
+        const { resolved } = resolveInsideCwd(AGENTS_MD_FILENAME);
+        const content = await readFile(resolved, "utf-8");
+        return createHash("sha256").update(content.trim()).digest("hex");
+    } catch {
+        return undefined;
+    }
 }
 
 export async function executeLocalTool(toolName: string, input: unknown, mode: ModeType) {

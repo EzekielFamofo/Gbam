@@ -32,6 +32,7 @@ model Session {
   lastActivityAt DateTime?
   status         String   @default("new")
   creditsUsed    Int      @default(0)
+  agentsMdHash String?
 
   @@index([userId])
   @@index([lastActivityAt])

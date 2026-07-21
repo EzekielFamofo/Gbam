@@ -27,7 +27,6 @@ export type DashboardTransactionItem = {
   creditsDelta: number;
   description: string | null;
   sessionId: string | null;
-  sessionTitle: string | null;
   createdAt: string;
 };
 

@@ -3,6 +3,13 @@ import type { ModeType } from "@gbam/shared";
 type SystemPromptParams = {
   mode: ModeType;
   agentsMdContent?: string;
+  /**
+   * Set by the caller when it knows (via a content hash from the CLI, which
+   * has real filesystem access) that AGENTS.md differs from what the agent
+   * last read in this session. Ignored when `agentsMdContent` is supplied
+   * directly, since that already carries the current content.
+   */
+  agentsMdChanged?: boolean;
 };
 
 /** Read-only tools available in PLAN mode. */
@@ -31,9 +38,15 @@ function assertUnreachable(value: never, context: string): never {
 export function buildSystemPrompt({
   mode,
   agentsMdContent,
+  agentsMdChanged,
 }: SystemPromptParams): string {
   const parts: string[] = [buildRoleSection(mode)];
 
+  // If the caller already has AGENTS.md content in hand (e.g. it's cached in
+  // the DB for this project), inject it directly. Otherwise, since this
+  // server has no filesystem access to the user's repo, tell the agent to
+  // fetch it itself with its own readFile/glob tools - the same way it
+  // reads any other project file.
   const trimmedGuidelines = agentsMdContent?.trim();
   if (trimmedGuidelines) {
     parts.push(
@@ -41,12 +54,31 @@ export function buildSystemPrompt({
 ${trimmedGuidelines}
 </project_guidelines>`
     );
+  } else {
+    parts.push(buildAgentsMdDiscoveryDirective(agentsMdChanged ?? false));
   }
 
   parts.push(buildModeDirectives(mode));
   parts.push(buildOperationalRules(mode));
 
   return parts.join("\n\n");
+}
+
+function buildAgentsMdDiscoveryDirective(changed: boolean): string {
+  if (changed) {
+    return `<repo_guidelines_discovery>
+## Repository Guidelines Discovery
+- AGENTS.md has changed since you last read it in this session. Re-read it now via \`readFile\` before continuing, and treat its updated contents as authoritative project guidelines for the rest of the session.
+</repo_guidelines_discovery>`;
+  }
+
+  return `<repo_guidelines_discovery>
+## Repository Guidelines Discovery
+- At the start of a new session, before making any code changes, check the repository root for an \`AGENTS.md\` file (or similar contributor guide) using \`readFile\`. If its location isn't obvious, use \`glob\` to locate it.
+- If found, treat its contents as authoritative project guidelines for the rest of the session, on par with the instructions in this prompt.
+- If not found, proceed without repo-specific guidelines - do not ask the user to create one.
+- Do not re-read \`AGENTS.md\` on every turn. You'll be told explicitly here if it has changed since your last read; otherwise, only re-read it if the user says so.
+</repo_guidelines_discovery>`;
 }
 
 function buildRoleSection(mode: ModeType): string {

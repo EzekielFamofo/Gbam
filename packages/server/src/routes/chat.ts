@@ -46,6 +46,7 @@ const submitSchema = z.object({
     ).min(1),
     mode: modeSchema,
     model: z.string().refine(isSupportedChatModel, "Unsupported model"),
+    agentsMdHash: z.string().optional(),
 });
 
 const submitValidator = zValidator("json", submitSchema, (result, c) => {
@@ -166,7 +167,7 @@ const app = new Hono<AuthenticatedEnv>()
         requireCreditsBalance,
         async (c) => {
             const userId = c.get("userId");
-            const { id, messages, mode, model } = c.req.valid("json");
+            const { id, messages, mode, model, agentsMdHash } = c.req.valid("json");
 
             const session = await db.session.findUnique({
                 where: { id, userId }
@@ -175,6 +176,13 @@ const app = new Hono<AuthenticatedEnv>()
             if (!session) {
                 return c.json({ error: "Session not found" }, 400);
             }
+
+            // Only "changed" if we've seen a hash before AND it differs now.
+            // A first-ever hash (session.agentsMdHash === null) isn't a "change" -
+            // the discovery directive in buildSystemPrompt already covers that
+            // via the fresh-session case.
+            const agentsMdChanged =
+                session.agentsMdHash != null && agentsMdHash !== session.agentsMdHash;
 
             const startTime = Date.now();
             const summaryStartTime = new Date();
@@ -232,6 +240,7 @@ const app = new Hono<AuthenticatedEnv>()
               SET
                 "lastMode" = ${mode},
                 "lastModel" = ${model},
+                "agentsMdHash" = ${agentsMdHash ?? null},
                 "lastActivityAt" = ${summaryStartTime},
                 "status" = ${"waiting"},
                 "updatedAt" = ${summaryStartTime}
@@ -240,7 +249,7 @@ const app = new Hono<AuthenticatedEnv>()
 
             const result = streamText({
                 model: resolvedModel.model,
-                system: buildSystemPrompt({ mode }),
+                system: buildSystemPrompt({ mode, agentsMdChanged }),
                 messages: modelMessages,
                 tools,
                 providerOptions: resolvedModel.providerOptions,
@@ -288,6 +297,7 @@ const app = new Hono<AuthenticatedEnv>()
                       SET
                         "lastMode" = ${mode},
                         "lastModel" = ${model},
+                        "agentsMdHash" = ${agentsMdHash ?? null},
                         "lastActivityAt" = ${completedAt},
                         "status" = ${"complete"},
                         "updatedAt" = ${completedAt}
