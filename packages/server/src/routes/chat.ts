@@ -1,18 +1,18 @@
 import {
-    compactConversationForSession,
-    getToolContracts,
-    modeSchema,
-    type ModeType,
-    type ToolContracts,
+  compactConversationForSession,
+  getToolContracts,
+  modeSchema,
+  type ModeType,
+  type ToolContracts,
 } from "@gbam/shared";
 import {
-    convertToModelMessages,
-    InferUITools,
-    type LanguageModelUsage,
-    streamText,
-    type UIMessage,
-    safeValidateUIMessages,
-    type ModelMessage,
+  convertToModelMessages,
+  InferUITools,
+  type LanguageModelUsage,
+  streamText,
+  type UIMessage,
+  safeValidateUIMessages,
+  type ModelMessage,
 } from "ai";
 import z from "zod";
 import { isSupportedChatModel, resolveChatModel } from "../lib/models";
@@ -22,81 +22,81 @@ import { type AuthenticatedEnv } from "../middleware/require-auth";
 import { requireCreditsBalance } from "../middleware/require-credits-balance";
 import { Prisma } from "@gbam/database";
 import { db } from "@gbam/database/client";
-import { buildSystemPrompt } from "../system-prompt";
+import { buildSystemPrompt } from "../system-prompt"; 
 import { CalculateCreditsForUsage } from "../lib/credits";
 import { recordUsageCreditTransaction } from "../lib/credits-ledger";
 import { getAvailableCreditsBalance, IngestAiUsage } from "../lib/polar";
 import { requireAuth } from "../middleware/require-auth";
 
 type ChatMessageMetadata = {
-    mode?: ModeType;
-    model?: string;
-    durationMs?: number;
-    usage?: LanguageModelUsage;
+  mode?: ModeType;
+  model?: string;
+  durationMs?: number;
+  usage?: LanguageModelUsage;
 };
 
 type GbamUIMessage = UIMessage<ChatMessageMetadata, never, InferUITools<ToolContracts>>;
 
 const submitSchema = z.object({
-    id: z.string(),
-    messages: z.array(
-        z.custom<GbamUIMessage>((value) => {
-            return value !== null && typeof value === "object" && "id" in value && "parts" in value;
-        }),
-    ).min(1),
-    mode: modeSchema,
-    model: z.string().refine(isSupportedChatModel, "Unsupported model"),
-    agentsMdHash: z.string().optional(),
+  id: z.string(),
+  messages: z.array(
+    z.custom<GbamUIMessage>((value) => {
+      return value !== null && typeof value === "object" && "id" in value && "parts" in value;
+    }),
+  ).min(1),
+  mode: modeSchema,
+  model: z.string().refine(isSupportedChatModel, "Unsupported model"),
+  agentsMdHash: z.string().optional(),
 });
 
 const submitValidator = zValidator("json", submitSchema, (result, c) => {
-    if (!result.success) {
-        return c.json({ error: "Invalid request body" }, 400);
-    }
+  if (!result.success) {
+    return c.json({ error: "Invalid request body" }, 400);
+  }
 });
 
 function hasPendingToolCalls(message: GbamUIMessage) {
-    return message.parts.some((part) => {
-        if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
-            const state = (part as { state?: string }).state;
-            return state !== "output-available" && state !== "output-error";
-        }
-        return false;
-    });
+  return message.parts.some((part) => {
+    if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
+      const state = (part as { state?: string }).state;
+      return state !== "output-available" && state !== "output-error";
+    }
+    return false;
+  });
 }
 
 /**
  * Strips provider metadata and client IDs from UI messages before saving to Prisma DB.
  */
 function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[] {
-    return messages.map((msg) => {
-        const cleanMsg = JSON.parse(JSON.stringify(msg)) as Record<string, unknown>;
+  return messages.map((msg) => {
+    const cleanMsg = JSON.parse(JSON.stringify(msg)) as Record<string, unknown>;
 
-        delete cleanMsg.providerMetadata;
-        delete cleanMsg.providerOptions;
+    delete cleanMsg.providerMetadata;
+    delete cleanMsg.providerOptions;
 
-        if (typeof cleanMsg.id === "string" && cleanMsg.id.startsWith("msg_")) {
-            delete cleanMsg.id;
+    if (typeof cleanMsg.id === "string" && cleanMsg.id.startsWith("msg_")) {
+      delete cleanMsg.id;
+    }
+
+    if (Array.isArray(cleanMsg.parts)) {
+      cleanMsg.parts = cleanMsg.parts.map((part) => {
+        if (part && typeof part === "object") {
+          const cleanPart = { ...part } as Record<string, unknown>;
+          delete cleanPart.providerMetadata;
+          delete cleanPart.providerOptions;
+
+          if (typeof cleanPart.id === "string" && cleanPart.id.startsWith("msg_")) {
+            delete cleanPart.id;
+          }
+          return cleanPart;
         }
+        return part;
+      });
+    }
 
-        if (Array.isArray(cleanMsg.parts)) {
-            cleanMsg.parts = cleanMsg.parts.map((part) => {
-                if (part && typeof part === "object") {
-                    const cleanPart = { ...part } as Record<string, unknown>;
-                    delete cleanPart.providerMetadata;
-                    delete cleanPart.providerOptions;
-
-                    if (typeof cleanPart.id === "string" && cleanPart.id.startsWith("msg_")) {
-                        delete cleanPart.id;
-                    }
-                    return cleanPart;
-                }
-                return part;
-            });
-        }
-
-        return cleanMsg as unknown as GbamUIMessage;
-    });
+    return cleanMsg as unknown as GbamUIMessage;
+  });
 }
 
 /**
@@ -104,266 +104,262 @@ function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[
  * Handles cases where a local tool execution was interrupted or cancelled on the CLI.
  */
 function completeDanglingToolCalls(messages: ModelMessage[]): ModelMessage[] {
-    const validToolCalls = new Map<string, string>();
-    const respondedToolCalls = new Set<string>();
+  const validToolCalls = new Map<string, string>();
+  const respondedToolCalls = new Set<string>();
 
-    for (const msg of messages) {
-        if (msg.role === "assistant" && Array.isArray(msg.content)) {
-            for (const part of msg.content) {
-                if (
-                    typeof part === "object" &&
-                    part !== null &&
-                    "type" in part &&
-                    part.type === "tool-call" &&
-                    "toolCallId" in part
-                ) {
-                    const call = part as { toolCallId: string; toolName?: string };
-                    validToolCalls.set(call.toolCallId, call.toolName || "unknown_tool");
-                }
-            }
-        } else if (msg.role === "tool" && Array.isArray(msg.content)) {
-            for (const part of msg.content) {
-                if (
-                    typeof part === "object" &&
-                    part !== null &&
-                    "toolCallId" in part
-                ) {
-                    respondedToolCalls.add((part as { toolCallId: string }).toolCallId);
-                }
-            }
+  for (const msg of messages) {
+    if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      for (const part of msg.content) {
+        if (
+          typeof part === "object" &&
+          part !== null &&
+          "type" in part &&
+          part.type === "tool-call" &&
+          "toolCallId" in part
+        ) {
+          const call = part as { toolCallId: string; toolName?: string };
+          validToolCalls.set(call.toolCallId, call.toolName || "unknown_tool");
         }
+      }
+    } else if (msg.role === "tool" && Array.isArray(msg.content)) {
+      for (const part of msg.content) {
+        if (
+          typeof part === "object" &&
+          part !== null &&
+          "toolCallId" in part
+        ) {
+          respondedToolCalls.add((part as { toolCallId: string }).toolCallId);
+        }
+      }
     }
+  }
 
-    const unhandledIds = Array.from(validToolCalls.keys()).filter(
-        (id) => !respondedToolCalls.has(id)
-    );
+  const unhandledIds = Array.from(validToolCalls.keys()).filter(
+    (id) => !respondedToolCalls.has(id)
+  );
 
-    const cleanedMessages = messages.filter(
-        (msg) => msg.content && (!Array.isArray(msg.content) || msg.content.length > 0)
-    );
+  const cleanedMessages = messages.filter(
+    (msg) => msg.content && (!Array.isArray(msg.content) || msg.content.length > 0)
+  );
 
-    if (unhandledIds.length === 0) {
-        return cleanedMessages;
-    }
+  if (unhandledIds.length === 0) {
+    return cleanedMessages;
+  }
 
-    const syntheticToolMessage: ModelMessage = {
-        role: "tool",
-        content: unhandledIds.map((id) => ({
-            type: "tool-result",
-            toolCallId: id,
-            toolName: validToolCalls.get(id) || "unknown_tool",
-            result: { error: "Execution interrupted or tool execution cancelled." },
-        })) as any,
-    };
+  const syntheticToolMessage: ModelMessage = {
+    role: "tool",
+    content: unhandledIds.map((id) => ({
+      type: "tool-result",
+      toolCallId: id,
+      toolName: validToolCalls.get(id) || "unknown_tool",
+      result: { error: "Execution interrupted or tool execution cancelled." },
+    })) as any,
+  };
 
-    return [...cleanedMessages, syntheticToolMessage];
+  return [...cleanedMessages, syntheticToolMessage];
 }
 
 const app = new Hono<AuthenticatedEnv>()
-    .use("*", requireAuth)
-    .post(
-        "/",
-        submitValidator,
-        requireCreditsBalance,
-        async (c) => {
-            const userId = c.get("userId");
-            const { id, messages, mode, model, agentsMdHash } = c.req.valid("json");
+  .use("*", requireAuth)
+  .post(
+    "/",
+    submitValidator,
+    requireCreditsBalance,
+    async (c) => {
+      const userId = c.get("userId");
+      const { id, messages, mode, model, agentsMdHash } = c.req.valid("json");
 
-            const session = await db.session.findUnique({
-                where: { id, userId }
-            });
+      const session = await db.session.findUnique({
+        where: { id, userId }
+      });
 
-            if (!session) {
-                return c.json({ error: "Session not found" }, 400);
-            }
+      if (!session) {
+        return c.json({ error: "Session not found" }, 400);
+      }
 
-            // Only "changed" if we've seen a hash before AND it differs now.
-            // A first-ever hash (session.agentsMdHash === null) isn't a "change" -
-            // the discovery directive in buildSystemPrompt already covers that
-            // via the fresh-session case.
-            const agentsMdChanged =
-                session.agentsMdHash != null && agentsMdHash !== session.agentsMdHash;
+      // Only "changed" if we've seen a hash before AND it differs now.
+      const agentsMdChanged =
+        session.agentsMdHash != null && agentsMdHash !== session.agentsMdHash;
 
-            const startTime = Date.now();
-            const summaryStartTime = new Date();
-            const tools = getToolContracts(mode);
+      const startTime = Date.now();
+      const summaryStartTime = new Date();
+      const tools = getToolContracts(mode);
 
-            // Resolve model, provider, and options from lib/models.ts
-            const resolvedModel = resolveChatModel(model);
+      // Resolve model, provider, and options from lib/models.ts
+      const resolvedModel = resolveChatModel(model);
 
-            const previousMessages = Array.isArray(session.messages)
-                ? (session.messages as unknown as GbamUIMessage[])
-                : [];
-            const mergedMessages = [...previousMessages];
+      const previousMessages = Array.isArray(session.messages)
+        ? (session.messages as unknown as GbamUIMessage[])
+        : [];
+      const mergedMessages = [...previousMessages];
 
-            for (const message of messages) {
-                const incomingMessage = {
-                    ...message,
-                    metadata: { ...message.metadata, mode, model },
-                } satisfies GbamUIMessage;
+      for (const message of messages) {
+        const incomingMessage = {
+          ...message,
+          metadata: { ...message.metadata, mode, model },
+        } satisfies GbamUIMessage;
 
-                const existingMessageIndex = mergedMessages.findIndex((m) => m.id === incomingMessage.id);
+        const existingMessageIndex = mergedMessages.findIndex((m) => m.id === incomingMessage.id);
 
-                if (existingMessageIndex === -1) {
-                    mergedMessages.push(incomingMessage);
-                } else {
-                    mergedMessages[existingMessageIndex] = incomingMessage;
-                }
-            }
+        if (existingMessageIndex === -1) {
+          mergedMessages.push(incomingMessage);
+        } else {
+          mergedMessages[existingMessageIndex] = incomingMessage;
+        }
+      }
 
-            const cleanMergedMessages = compactConversationForSession(
-                mergedMessages.filter((m) => m.parts && m.parts.length > 0),
-            );
+      const cleanMergedMessages = compactConversationForSession(
+        mergedMessages.filter((m) => m.parts && m.parts.length > 0),
+      );
 
-            const validationResult = await safeValidateUIMessages<GbamUIMessage>({
-                messages: cleanMergedMessages,
-                tools,
-            });
+      const validationResult = await safeValidateUIMessages<GbamUIMessage>({
+        messages: cleanMergedMessages,
+        tools,
+      });
 
-            if (!validationResult.success) {
-                console.error("🚨 UIMessage validation failed:", JSON.stringify(validationResult.error.message));
-                return c.json({ 
-                    error: "Invalid chat history format", 
-                    details: validationResult.error.message
-                }, 400);
-            }
+      if (!validationResult.success) {
+        console.error("🚨 UIMessage validation failed:", JSON.stringify(validationResult.error.message));
+        return c.json({ 
+          error: "Invalid chat history format", 
+          details: validationResult.error.message
+        }, 400);
+      }
 
-            const nextMessages = validationResult.data;
+      const nextMessages = validationResult.data;
 
-            const rawModelMessages = await convertToModelMessages(nextMessages, { tools });
-            const modelMessages = completeDanglingToolCalls(rawModelMessages);
+      const rawModelMessages = await convertToModelMessages(nextMessages, { tools });
+      const modelMessages = completeDanglingToolCalls(rawModelMessages);
 
-            let completedUsage: LanguageModelUsage | null = null;
+      let completedUsage: LanguageModelUsage | null = null;
 
-            await db.$executeRaw`
-              UPDATE "Session"
-              SET
-                "lastMode" = ${mode},
-                "lastModel" = ${model},
-                "agentsMdHash" = ${agentsMdHash ?? null},
-                "lastActivityAt" = ${summaryStartTime},
-                "status" = ${"waiting"},
-                "updatedAt" = ${summaryStartTime}
-              WHERE "id" = ${id} AND "userId" = ${userId}
-            `;
-
-            const result = streamText({
-                model: resolvedModel.model,
-                system: buildSystemPrompt({ mode, agentsMdChanged }),
-                messages: modelMessages,
-                tools,
-                providerOptions: resolvedModel.providerOptions,
-                onFinish(event) {
-                    completedUsage = event.totalUsage;
-                },
-            });
-
-            return result.toUIMessageStreamResponse<GbamUIMessage>({
-                originalMessages: nextMessages,
-                messageMetadata({ part }) {
-                    if (part.type === "start") {
-                        return { mode, model };
-                    }
-
-                    if (part.type !== "finish") return undefined;
-
-                    return {
-                        mode,
-                        model,
-                        durationMs: Date.now() - startTime,
-                        ...(completedUsage ? { usage: completedUsage } : {}),
-                    };
-                },
-                async onFinish(event) {
-                    if (event.isAborted) return;
-
-                    if (hasPendingToolCalls(event.responseMessage)) return;
-
-                    const completedAt = new Date();
-
-                    const sanitizedMessages = sanitizeUIMessagesForStorage(
-                        event.messages as unknown as GbamUIMessage[]
-                    );
-
-                    await db.session.update({
-                        where: { id, userId },
-                        data: {
-                            messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
-                        },
-                    });
-
-                    await db.$executeRaw`
-                      UPDATE "Session"
-                      SET
-                        "lastMode" = ${mode},
-                        "lastModel" = ${model},
-                        "agentsMdHash" = ${agentsMdHash ?? null},
-                        "lastActivityAt" = ${completedAt},
-                        "status" = ${"complete"},
-                        "updatedAt" = ${completedAt}
-                      WHERE "id" = ${id} AND "userId" = ${userId}
-                    `;
-
-                    if (!completedUsage) return;
-
-                    try {
-                        const billableUsage = CalculateCreditsForUsage({
-                            provider: resolvedModel.provider,
-                            model: resolvedModel.modelId,
-                            usage: completedUsage,
-                        });
-
-                        const providerReference = `chat-message:${event.responseMessage.id}`;
-
-                        await IngestAiUsage({
-                            externalCustomerId: userId,
-                            eventId: providerReference,
-                            credits: billableUsage.credits
-                        });
-
-                        let providerBalanceCreditsAfter: number | null = null;
-                        try {
-                            providerBalanceCreditsAfter = await getAvailableCreditsBalance(userId);
-                        } catch (balanceError) {
-                            console.error("Failed to refresh provider balance after usage ingest", {
-                                balanceError,
-                                sessionId: id,
-                                messageId: event.responseMessage.id,
-                                userId,
-                            });
-                        }
-
-                        await recordUsageCreditTransaction({
-                            userId,
-                            sessionId: id,
-                            messageId: event.responseMessage.id,
-                            credits: billableUsage.credits,
-                            description: session.title,
-                            providerReference,
-                            providerBalanceCreditsAfter,
-                        });
-
-                        await db.$executeRaw`
-                          UPDATE "Session"
-                          SET
-                            "creditsUsed" = COALESCE("creditsUsed", 0) + ${billableUsage.credits},
-                            "updatedAt" = ${completedAt}
-                          WHERE "id" = ${id} AND "userId" = ${userId}
-                        `;
-                    } catch (error) {
-                        console.error("Failed to ingest Polar AI usage for chat message", {
-                            error,
-                            sessionId: id,
-                            messageId: event.responseMessage.id,
-                            userId,
-                        });
-                    }
-                },
-                onError(error) {
-                    return error instanceof Error ? error.message : String(error);
-                },
-            });
+      // Ensure waiting state is updated using Prisma (ignores agentsMdHash if undefined)
+      await db.session.update({
+        where: { id, userId },
+        data: {
+          lastMode: mode,
+          lastModel: model,
+          agentsMdHash: agentsMdHash, 
+          lastActivityAt: summaryStartTime,
+          status: "waiting",
+          updatedAt: summaryStartTime,
         },
-    );
+      });
+
+      const result = streamText({
+        model: resolvedModel.model,
+        system: buildSystemPrompt({ mode, agentsMdChanged }),
+        messages: modelMessages,
+        tools,
+        providerOptions: resolvedModel.providerOptions,
+        onFinish(event) {
+          completedUsage = event.totalUsage;
+        },
+      });
+
+      return result.toUIMessageStreamResponse<GbamUIMessage>({
+        originalMessages: nextMessages,
+        messageMetadata({ part }) {
+          if (part.type === "start") {
+            return { mode, model };
+          }
+
+          if (part.type !== "finish") return undefined;
+
+          return {
+            mode,
+            model,
+            durationMs: Date.now() - startTime,
+            ...(completedUsage ? { usage: completedUsage } : {}),
+          };
+        },
+        async onFinish(event) {
+          if (event.isAborted) return;
+
+          if (hasPendingToolCalls(event.responseMessage)) return;
+
+          const completedAt = new Date();
+
+          const sanitizedMessages = sanitizeUIMessagesForStorage(
+            event.messages as unknown as GbamUIMessage[]
+          );
+
+          // Combined session update incorporating the messages and final state
+          await db.session.update({
+            where: { id, userId },
+            data: {
+              messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
+              lastMode: mode,
+              lastModel: model,
+              agentsMdHash: agentsMdHash, // Ignored safely by Prisma if undefined
+              lastActivityAt: completedAt,
+              status: "complete",
+              updatedAt: completedAt,
+            },
+          });
+
+          if (!completedUsage) return;
+
+          try {
+            const billableUsage = CalculateCreditsForUsage({
+              provider: resolvedModel.provider,
+              model: resolvedModel.modelId,
+              usage: completedUsage,
+            });
+
+            const providerReference = `chat-message:${event.responseMessage.id}`;
+
+            await IngestAiUsage({
+              externalCustomerId: userId,
+              eventId: providerReference,
+              credits: billableUsage.credits
+            });
+
+            let providerBalanceCreditsAfter: number | null = null;
+            try {
+              providerBalanceCreditsAfter = await getAvailableCreditsBalance(userId);
+            } catch (balanceError) {
+              console.error("Failed to refresh provider balance after usage ingest", {
+                balanceError,
+                sessionId: id,
+                messageId: event.responseMessage.id,
+                userId,
+              });
+            }
+
+            await recordUsageCreditTransaction({
+              userId,
+              sessionId: id,
+              messageId: event.responseMessage.id,
+              credits: billableUsage.credits,
+              description: session.title,
+              providerReference,
+              providerBalanceCreditsAfter,
+            });
+
+            // Replaced raw SQL execution with Prisma's increment api
+            await db.session.update({
+              where: { id, userId },
+              data: {
+                creditsUsed: {
+                  increment: billableUsage.credits,
+                },
+                updatedAt: completedAt,
+              },
+            });
+          } catch (error) {
+            console.error("Failed to ingest Polar AI usage for chat message", {
+              error,
+              sessionId: id,
+              messageId: event.responseMessage.id,
+              userId,
+            });
+          }
+        },
+        onError(error) {
+          return error instanceof Error ? error.message : String(error);
+        },
+      });
+    },
+  );
 
 export default app;
