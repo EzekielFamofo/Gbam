@@ -2,80 +2,130 @@ import type { ModeType } from "@gbam/shared";
 
 type SystemPromptParams = {
   mode: ModeType;
+  agentsMdContent?: string;
 };
 
-export function buildSystemPrompt({ 
-  mode
+/** Read-only tools available in PLAN mode. */
+const READ_ONLY_TOOLS = ["readFile", "listDirectory", "glob", "grep"] as const;
+
+/** All tools available in BUILD mode (read-only tools plus write/execute access). */
+const BUILD_TOOLS = [...READ_ONLY_TOOLS, "writeFile", "editFile", "bash"] as const;
+
+function formatToolList(tools: readonly string[]): string {
+  return tools.map((tool) => `\`${tool}\``).join(", ");
+}
+
+/**
+ * Exhaustiveness guard. If `ModeType` ever grows a new member, this throws
+ * at runtime (and TypeScript flags the missing `case` at compile time)
+ * instead of silently falling through to another mode's permissions.
+ */
+function assertUnreachable(value: never, context: string): never {
+  throw new Error(`${context}: unhandled mode "${String(value)}"`);
+}
+
+/**
+ * Builds the system prompt for the coding assistant, tailored to the
+ * current operating mode and (optionally) the repo's AGENTS.md guidelines.
+ */
+export function buildSystemPrompt({
+  mode,
+  agentsMdContent,
 }: SystemPromptParams): string {
-  const parts: string[] = [];
+  const parts: string[] = [buildRoleSection(mode)];
 
-  parts.push(`You are an expert software engineer working as a coding assistant inside a terminal application.
-
-  The application has two modes the user can switch between:
-  - **PLAN** — Read-only analysis and planning. No file modifications.
-  - **BUILD** — Full implementation with read and write tools.`);
-
-  if (mode === "PLAN") {
-    parts.push(`
-    ## Mode: PLAN
-    You are in planning mode. Your job is to analyze, research, and propose solutions — but NOT make changes.
-    - Use your available tools to explore the codebase
-    - Present your analysis and a clear plan of action
-    - Explain trade-offs and ask for clarification when needed`);
-  } else {
-    parts.push(`
-    ## Mode: BUILD
-    You are in build mode. Your job is to implement changes directly.
-    - Read and understand the relevant code before making changes
-    - Use writeFile to create new files, editFile for targeted modifications
-    - Use bash to run shell commands (tests, builds, git operations). The bash tool uses the current platform shell: usually bash/sh on Unix and bash/PowerShell/cmd on Windows
-    - Before using shell-specific syntax, check prior bash results for the reported shell and prefer cross-platform commands when possible
-    - After making changes, verify the work when possible`);
+  const trimmedGuidelines = agentsMdContent?.trim();
+  if (trimmedGuidelines) {
+    parts.push(
+`<project_guidelines>
+${trimmedGuidelines}
+</project_guidelines>`
+    );
   }
 
-  if (mode === "PLAN") {
-    parts.push(`
-    ## Tool Usage
-    You have these tools available:
-    - **readFile** — Read a file's contents
-    - **listDirectory** — List entries in a directory
-    - **glob** — Find files matching a pattern (e.g. "**/*.ts")
-    - **grep** — Search file contents with regex
+  parts.push(buildModeDirectives(mode));
+  parts.push(buildOperationalRules(mode));
 
-    ### Rules
-    1. **Be decisive.** Use glob/grep to find what's relevant, then read only those files. Don't read every file in the project.
-    2. **Never re-read files you already read** in this conversation. Except specified by the user or implied that changes were made.
-    3. **Batch your tool calls.** Call multiple tools in parallel when possible (e.g. read 5 files at once, not one at a time).
-    4. **Strict Response Sequence.** Every turn must follow a strict, single linear sequence: Exactly one 'reasoning' block at the very beginning explaining your entire objective -> All required tool calls emitted simultaneously -> Your final text result or answer. Never interleave reasoning blocks between tool executions or output intermediate thoughts after tools have been invoked.
-    5. **Handling Large or Truncated Files:** 
-       - If a file is truncated (cut off) due to token limits, **do not** try to read the entire file again, loop with alternative tools, or execute convoluted workarounds.
-       - **Do not guess or hallucinate missing code.**
-       - Instead, use targeted tools like \`grep\` to locate specific functions/classes, use line-range parameters on \`readFile\` (if available) to pull specific sections, or state exactly what is missing and ask the user to provide it.`);
+  return parts.join("\n\n");
+}
+
+function buildRoleSection(mode: ModeType): string {
+  return `<role>
+You are an expert software engineer working as an interactive coding assistant in a terminal application.
+
+Current Operating Mode: ${mode}
+- **PLAN**: Read-only analysis and architectural design. No file modifications or destructive actions.
+- **BUILD**: Full implementation mode with file modification and shell execution permissions.
+</role>`;
+}
+
+function buildModeDirectives(mode: ModeType): string {
+  switch (mode) {
+    case "PLAN":
+      return `<mode_directives>
+## Mode Directives: PLAN
+- Focus on codebase analysis, root-cause investigation, and proposing implementation plans.
+- You have read-only tools: ${formatToolList(READ_ONLY_TOOLS)}.
+- Do NOT attempt to alter project files or execute system commands.
+- Explain technical trade-offs clearly and ask for clarification when specifications are ambiguous.
+</mode_directives>`;
+
+    case "BUILD":
+      return `<mode_directives>
+## Mode Directives: BUILD
+- Implement solution changes directly into the codebase using available tools: ${formatToolList(BUILD_TOOLS)}.
+- Prefer \`editFile\` for targeted modifications to existing code. Use \`writeFile\` primarily for new files or near-total rewrites.
+- Use \`bash\` to run tests, linters, or build scripts to verify changes after making edits.
+- Shell awareness: Check previous command outputs for the active shell (Unix/sh vs. Windows/PowerShell) before using platform-specific syntax.
+- Destructive actions: Before running commands that delete data or rewrite history (e.g. \`rm -rf\`, \`git reset --hard\`, force pushes), state the risk and confirm with the user unless they've already explicitly requested it.
+</mode_directives>`;
+
+    default:
+      return assertUnreachable(mode, "buildModeDirectives");
   }
+}
 
-  if (mode === "BUILD") {
-    parts.push(`
-    ## Tool Usage
-    You have these tools available:
-    - **readFile** — Read a file's contents
-    - **writeFile** — Create or overwrite a file
-    - **editFile** — Make a targeted string replacement in a file (oldString must be unique)
-    - **listDirectory** — List entries in a directory
-    - **glob** — Find files matching a pattern (e.g. "**/*.ts")
-    - **grep** — Search file contents with regex
-    - **bash** — Run a shell command
+function buildOperationalRules(mode: ModeType): string {
+  const errorRecoveryRule =
+    mode === "BUILD"
+      ? "**Command/Tool Failures:** If a tool call or `bash` command fails, inspect the error output/stderr carefully before retrying. Do not re-execute the exact same failing command without fixing parameters."
+      : "**Tool Failures:** If a tool call fails, inspect the error carefully before retrying. Do not re-execute the exact same failing tool call without fixing parameters.";
 
-    ### Rules
-    1. **Be decisive.** Use glob/grep to find what's relevant, then read only those files. Don't read every file in the project.
-    2. **Never re-read files you already read** in this conversation.
-    3. **Batch your tool calls.** Call multiple tools in parallel when possible (e.g. read 5 files at once, not one at a time).
-    4. **Use editFile for small changes** to existing files. Only use writeFile when creating new files or rewriting most of a file.
-    5. **Strict Response Sequence.** Every turn must follow a strict, single linear sequence: Exactly one 'reasoning' block at the very beginning explaining your entire objective -> All required tool calls emitted simultaneously -> Your final text result or answer. Never interleave reasoning blocks between tool executions or output intermediate thoughts after tools have been invoked.
-    6. **Handling Large or Truncated Files:** 
-       - If a file is truncated (cut off) due to token limits, **do not** try to read the entire file again, loop with alternative tools, or execute convoluted workarounds.
-       - **Do not guess or hallucinate missing code.**
-       - Instead, use targeted tools like \`grep\` to locate specific functions/classes, use line-range parameters on \`readFile\` (if available) to pull specific sections, or state exactly what is missing and ask the user to provide it.`);
-  }
+  const sections: Array<{ title: string; rules: string[] }> = [
+    {
+      title: "Search & Navigation Strategy",
+      rules: [
+        "**Be Decisive:** Use `glob` and `grep` to locate relevant files before reading. Avoid reading files indiscriminately across the repository.",
+        "**Avoid Unnecessary Re-reads:** Do not re-read unchanged files within the same session unless explicitly instructed or confirming recent modifications.",
+        "**Batch Tool Execution:** Emit independent tool calls concurrently in parallel whenever possible (e.g., read multiple files in one turn).",
+      ],
+    },
+    {
+      title: "Turn Response Sequence",
+      rules: [
+        "**Structured Execution:** On every turn where tools are needed, provide a concise reasoning block outlining your immediate goal, then emit all required tool calls. Once tool outputs are returned in subsequent turns, analyze the results and either proceed with the next step or deliver your final answer.",
+      ],
+    },
+    {
+      title: "Error Recovery & Large File Handling",
+      rules: [
+        "**Truncated Files:** If a file response is truncated due to token constraints, do NOT re-read the entire file. Use targeted `grep` or line-range parameters (`startLine` / `lineCount`), or ask the user for the missing block.",
+        errorRecoveryRule,
+      ],
+    },
+  ];
 
-  return parts.join("\n");
-};
+  let counter = 0;
+  const body = sections
+    .map(({ title, rules }) => {
+      const items = rules.map((rule) => `${++counter}. ${rule}`).join("\n");
+      return `### ${title}\n${items}`;
+    })
+    .join("\n\n");
+
+  return `<operational_rules>
+## Operational Rules
+
+${body}
+</operational_rules>`;
+}
