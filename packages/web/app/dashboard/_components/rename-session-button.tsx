@@ -4,14 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-import type { DashboardSessionItem } from "@gbam/shared";
-
 type Props = {
   sessionId: string;
   sessionTitle: string;
+  onUpdated?: () => void | Promise<void>;
 };
 
-export function RenameSessionButton({ sessionId, sessionTitle }: Props) {
+export function RenameSessionButton({ sessionId, sessionTitle, onUpdated }: Props) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState(sessionTitle);
   const [editing, setEditing] = useState(false);
@@ -37,6 +36,7 @@ export function RenameSessionButton({ sessionId, sessionTitle }: Props) {
         throw new Error("Failed to rename session");
       }
       setEditing(false);
+      await onUpdated?.();
       router.refresh();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Failed to rename session");
@@ -66,7 +66,9 @@ export function RenameSessionButton({ sessionId, sessionTitle }: Props) {
       <Button type="submit" variant="outline" size="sm" disabled={isRenaming || !newTitle.trim()}>
         {isRenaming ? "Renaming..." : "Save"}
       </Button>
-      <Button variant="ghost" size="sm" type="button" onClick={handleCancel} disabled={isRenaming}>Cancel</Button>
+      <Button variant="ghost" size="sm" type="button" onClick={handleCancel} disabled={isRenaming}>
+        Cancel
+      </Button>
     </form>
   );
 }

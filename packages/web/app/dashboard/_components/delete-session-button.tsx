@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 type Props = {
   sessionId: string;
   sessionTitle: string;
+  onDeleted?: () => void | Promise<void>;
 };
 
-export function DeleteSessionButton({ sessionId, sessionTitle }: Props) {
+export function DeleteSessionButton({ sessionId, sessionTitle, onDeleted }: Props) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -33,6 +34,7 @@ export function DeleteSessionButton({ sessionId, sessionTitle }: Props) {
         throw new Error("Failed to delete session");
       }
 
+      await onDeleted?.();
       router.refresh();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Failed to delete session");

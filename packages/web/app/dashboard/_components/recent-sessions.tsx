@@ -5,7 +5,7 @@ import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
 import { DeleteSessionButton } from "./delete-session-button";
 import { EmptyState } from "./empty-state";
 import { RenameSessionButton } from "./rename-session-button";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 function formatStatus(status: DashboardSessionItem["status"]) {
   switch (status) {
@@ -26,9 +26,6 @@ function truncateSessionTitle(title: string, maxWords = 6) {
   return `${words.slice(0, maxWords).join(" ")}…`;
 }
 
-// Find the API endpoint for recent sessions (REST or custom route)
-// We'll fetch from /api/dashboard (or as appropriate) using current user context
-// Expect the GET /dashboard returns { sessions: DashboardSessionItem[] }
 async function fetchSessions(): Promise<DashboardSessionItem[]> {
   const res = await fetch("/api/dashboard", { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch sessions");
@@ -37,22 +34,38 @@ async function fetchSessions(): Promise<DashboardSessionItem[]> {
 }
 
 export function RecentSessions({ sessions: initialSessions }: { sessions: DashboardSessionItem[] }) {
-  // state for live data
   const [sessions, setSessions] = useState<DashboardSessionItem[]>(initialSessions);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+
+  const refreshSessions = useCallback(async () => {
+    try {
+      const updatedSessions = await fetchSessions();
+      if (isMountedRef.current) {
+        setSessions(updatedSessions);
+      }
+    } catch {
+      // Ignore network errors during polling
+    }
+  }, []);
 
   useEffect(() => {
-    // Poll every 4 seconds
-    function poll() {
-      fetchSessions().then(setSessions).catch(() => {});
-    }
-    pollingRef.current = setInterval(poll, 4000);
-    // Also do an immediate fetch
-    poll();
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
+    isMountedRef.current = true;
+    let timerId: NodeJS.Timeout;
+
+    const poll = async () => {
+      await refreshSessions();
+      if (isMountedRef.current) {
+        timerId = setTimeout(poll, 4000); // Only schedule next poll after current fetch finishes
+      }
     };
-  }, []);
+
+    void poll();
+
+    return () => {
+      isMountedRef.current = false;
+      clearTimeout(timerId);
+    };
+  }, [refreshSessions]);
 
   return (
     <section className="rounded-3xl border border-border bg-card p-6">
@@ -79,7 +92,7 @@ export function RecentSessions({ sessions: initialSessions }: { sessions: Dashbo
                     <p className="font-display text-base font-semibold text-foreground" title={session.title}>
                       {truncateSessionTitle(session.title)}
                     </p>
-                    <RenameSessionButton sessionId={session.id} sessionTitle={session.title} />
+                    <RenameSessionButton sessionId={session.id} sessionTitle={session.title} onUpdated={refreshSessions} />
                     {session.lastMode ? (
                       <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
                         {session.lastMode}
@@ -96,7 +109,7 @@ export function RecentSessions({ sessions: initialSessions }: { sessions: Dashbo
                   </div>
                 </div>
                 <div className="flex gap-2 self-end">
-                  <DeleteSessionButton sessionId={session.id} />
+                  <DeleteSessionButton sessionTitle={session.title} sessionId={session.id} onDeleted={refreshSessions} />
                 </div>
               </div>
             </div>
