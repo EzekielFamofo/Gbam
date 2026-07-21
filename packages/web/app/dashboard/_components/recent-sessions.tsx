@@ -5,6 +5,7 @@ import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
 import { DeleteSessionButton } from "./delete-session-button";
 import { EmptyState } from "./empty-state";
 import { RenameSessionButton } from "./rename-session-button";
+import { useEffect, useState, useRef } from "react";
 
 function formatStatus(status: DashboardSessionItem["status"]) {
   switch (status) {
@@ -22,11 +23,37 @@ function truncateSessionTitle(title: string, maxWords = 6) {
   if (words.length <= maxWords) {
     return title;
   }
-
   return `${words.slice(0, maxWords).join(" ")}…`;
 }
 
-export function RecentSessions({ sessions }: { sessions: DashboardSessionItem[] }) {
+// Find the API endpoint for recent sessions (REST or custom route)
+// We'll fetch from /api/dashboard (or as appropriate) using current user context
+// Expect the GET /dashboard returns { sessions: DashboardSessionItem[] }
+async function fetchSessions(): Promise<DashboardSessionItem[]> {
+  const res = await fetch("/api/dashboard", { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch sessions");
+  const data = await res.json();
+  return data.sessions || [];
+}
+
+export function RecentSessions({ sessions: initialSessions }: { sessions: DashboardSessionItem[] }) {
+  // state for live data
+  const [sessions, setSessions] = useState<DashboardSessionItem[]>(initialSessions);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Poll every 4 seconds
+    function poll() {
+      fetchSessions().then(setSessions).catch(() => {});
+    }
+    pollingRef.current = setInterval(poll, 4000);
+    // Also do an immediate fetch
+    poll();
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
+
   return (
     <section className="rounded-3xl border border-border bg-card p-6">
       <div className="flex items-start justify-between gap-4">
@@ -37,7 +64,6 @@ export function RecentSessions({ sessions }: { sessions: DashboardSessionItem[] 
           </p>
         </div>
       </div>
-
       <div className="mt-5 space-y-3">
         {sessions.length === 0 ? (
           <EmptyState
@@ -59,25 +85,18 @@ export function RecentSessions({ sessions }: { sessions: DashboardSessionItem[] 
                         {session.lastMode}
                       </span>
                     ) : null}
-                    <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
-                      {formatStatus(session.status)}
-                    </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>{session.lastModel ?? "Model not recorded"}</span>
-                    <span>•</span>
-                    <span>{formatDateTime(session.lastActivityAt)}</span>
+                  <div className="flex gap-4 text-xs text-muted-foreground">
+                    <span>Status: {formatStatus(session.status)}</span>
+                    <span>Model: {session.lastModel || "-"}</span>
+                    <span>Credits used: {formatCredits(session.creditsUsed)}</span>
+                  </div>
+                  <div className="flex gap-4 text-xs text-muted-foreground">
+                    <span>Last updated: {formatDateTime(session.lastActivityAt)}</span>
                   </div>
                 </div>
-
-                <div className="flex flex-col items-start gap-3 text-left md:items-end md:text-right">
-                  <div>
-                    <p className="font-display text-lg font-semibold text-foreground">
-                      {formatCredits(session.creditsUsed)} credits
-                    </p>
-                    <p className="text-xs text-muted-foreground">Used in this session</p>
-                  </div>
-                  <DeleteSessionButton sessionId={session.id} sessionTitle={session.title} />
+                <div className="flex gap-2 self-end">
+                  <DeleteSessionButton sessionId={session.id} />
                 </div>
               </div>
             </div>

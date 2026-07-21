@@ -96,4 +96,35 @@ const app = new Hono<AuthenticatedEnv>()
     return c.json(session, 201);
   });
 
+// PATCH /sessions/:id/complete — mark session complete and update status/credits
+app.patch("/:id/complete", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  let body;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+  // Credits required
+  const { creditsUsed } = body;
+  if (typeof creditsUsed !== "number" || creditsUsed < 0) {
+    return c.json({ error: "Invalid creditsUsed" }, 400);
+  }
+  // Check session ownership
+  const session = await db.session.findFirst({ where: { id, userId }});
+  if (!session) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+  const updatedSession = await db.session.update({
+    where: { id },
+    data: {
+      creditsUsed,
+      status: "complete",
+      lastActivityAt: new Date(),
+    },
+  });
+  return c.json(updatedSession);
+});
+
 export default app;

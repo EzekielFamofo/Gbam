@@ -56,11 +56,7 @@ export const MODEL_PROVIDER_OPTIONS: Partial<Record<SupportedChatModelId, Provid
     },
     // OpenAI models with varying reasoning efforts
     "gpt-4o": {},
-    "gpt-4.1": {
-        openai: {
-            reasoningEffort: "medium",
-        },
-    },
+    "gpt-4.1": {},
     "gpt-5-codex": {
         openai: {
             reasoningEffort: "high",
