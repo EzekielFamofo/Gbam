@@ -7,6 +7,29 @@ import {
 
 const app = new Hono<InternalWebAuthEnv>()
   .use("*", requireInternalWebAuth)
+  // PATCH (rename session)
+  .patch("/:id", async (c) => {
+    const userId = c.get("userId");
+    const id = c.req.param("id");
+    let body;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON" }, 400);
+    }
+    const { title } = body;
+    if (!title || typeof title !== "string" || !title.trim()) {
+      return c.json({ error: "Invalid title" }, 400);
+    }
+    const result = await db.session.updateMany({
+      where: { id, userId },
+      data: { title: title.trim() },
+    });
+    if (result.count === 0) {
+      return c.json({ error: "Session not found or not owned by user" }, 404);
+    }
+    return c.json({ success: true });
+  })
   .delete("/:id", async (c) => {
     const userId = c.get("userId");
     const id = c.req.param("id");
