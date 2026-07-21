@@ -58,7 +58,7 @@ export function LiveDashboard({ initialData }: { initialData: DashboardResponse 
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <RecentSessions sessions={dashboard.sessions} />
+        <RecentSessions sessions={dashboard.sessions} onUpdated={refreshDashboard} />
         <RecentTransactions transactions={dashboard.transactions} />
       </section>
     </>

@@ -5,7 +5,6 @@ import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
 import { DeleteSessionButton } from "./delete-session-button";
 import { EmptyState } from "./empty-state";
 import { RenameSessionButton } from "./rename-session-button";
-import { useCallback, useEffect, useRef, useState } from "react";
 
 function formatStatus(status: DashboardSessionItem["status"]) {
   switch (status) {
@@ -26,47 +25,12 @@ function truncateSessionTitle(title: string, maxWords = 6) {
   return `${words.slice(0, maxWords).join(" ")}…`;
 }
 
-async function fetchSessions(): Promise<DashboardSessionItem[]> {
-  const res = await fetch("/api/dashboard", { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch sessions");
-  const data = await res.json();
-  return data.sessions || [];
-}
+type Props = {
+  sessions: DashboardSessionItem[];
+  onUpdated?: () => void | Promise<void>;
+};
 
-export function RecentSessions({ sessions: initialSessions }: { sessions: DashboardSessionItem[] }) {
-  const [sessions, setSessions] = useState<DashboardSessionItem[]>(initialSessions);
-  const isMountedRef = useRef(true);
-
-  const refreshSessions = useCallback(async () => {
-    try {
-      const updatedSessions = await fetchSessions();
-      if (isMountedRef.current) {
-        setSessions(updatedSessions);
-      }
-    } catch {
-      // Ignore network errors during polling
-    }
-  }, []);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    let timerId: NodeJS.Timeout;
-
-    const poll = async () => {
-      await refreshSessions();
-      if (isMountedRef.current) {
-        timerId = setTimeout(poll, 4000); // Only schedule next poll after current fetch finishes
-      }
-    };
-
-    void poll();
-
-    return () => {
-      isMountedRef.current = false;
-      clearTimeout(timerId);
-    };
-  }, [refreshSessions]);
-
+export function RecentSessions({ sessions, onUpdated }: Props) {
   return (
     <section className="rounded-3xl border border-border bg-card p-6">
       <div className="flex items-start justify-between gap-4">
@@ -92,7 +56,7 @@ export function RecentSessions({ sessions: initialSessions }: { sessions: Dashbo
                     <p className="font-display text-base font-semibold text-foreground" title={session.title}>
                       {truncateSessionTitle(session.title)}
                     </p>
-                    <RenameSessionButton sessionId={session.id} sessionTitle={session.title} onUpdated={refreshSessions} />
+                    <RenameSessionButton sessionId={session.id} sessionTitle={session.title} onUpdated={onUpdated} />
                     {session.lastMode ? (
                       <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
                         {session.lastMode}
@@ -109,7 +73,7 @@ export function RecentSessions({ sessions: initialSessions }: { sessions: Dashbo
                   </div>
                 </div>
                 <div className="flex gap-2 self-end">
-                  <DeleteSessionButton sessionTitle={session.title} sessionId={session.id} onDeleted={refreshSessions} />
+                  <DeleteSessionButton sessionTitle={session.title} sessionId={session.id} onDeleted={onUpdated} />
                 </div>
               </div>
             </div>

@@ -15,6 +15,22 @@ const newSessionStateSchema = z.object({
     model: z.string().optional(),
 });
 
+const DEFAULT_SESSION_TITLE = "CLI session";
+
+function getInitialSessionTitle() {
+    const cwdSegments = process.cwd()
+        .replace(/[\\/]+$/, "")
+        .split(/[\\/]/)
+        .filter(Boolean);
+    const currentDirectoryName = cwdSegments.at(-1);
+
+    if (!currentDirectoryName || currentDirectoryName.endsWith(":")) {
+        return DEFAULT_SESSION_TITLE;
+    }
+
+    return Array.from(currentDirectoryName).slice(0, 100).join("");
+}
+
 export function NewSession() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -48,7 +64,7 @@ export function NewSession() {
                 const res = await apiClient.sessions.$post({ 
                     // we are doing this to ensure the user doesnt wait at the homepage when a new session is created(while the backend is working) and instead is redirected to a new session where they wait there
                     json: {
-                        title: Array.from(state.message).slice(0, 100).join(""),
+                        title: getInitialSessionTitle(),
                     }
                 });
 

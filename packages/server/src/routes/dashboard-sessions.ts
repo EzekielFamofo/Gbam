@@ -21,10 +21,19 @@ const app = new Hono<InternalWebAuthEnv>()
     if (!title || typeof title !== "string" || !title.trim()) {
       return c.json({ error: "Invalid title" }, 400);
     }
-    const result = await db.session.updateMany({
-      where: { id, userId },
-      data: { title: title.trim() },
-    });
+
+    const trimmedTitle = title.trim();
+    const [result] = await db.$transaction([
+      db.session.updateMany({
+        where: { id, userId },
+        data: { title: trimmedTitle },
+      }),
+      db.creditTransaction.updateMany({
+        where: { userId, sessionId: id },
+        data: { description: trimmedTitle },
+      }),
+    ]);
+
     if (result.count === 0) {
       return c.json({ error: "Session not found or not owned by user" }, 404);
     }

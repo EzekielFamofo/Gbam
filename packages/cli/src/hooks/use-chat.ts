@@ -16,6 +16,7 @@ import {
 } from "@gbam/shared";
 import { apiClient } from "../lib/api-client";
 import { getAuth } from "../lib/auth";
+import { ensureRootAgentsFile } from "../lib/ensure-root-agents-file";
 import { executeLocalTool } from "../lib/local-tools";
 
 export type ChatMessageMetadata = {
@@ -118,7 +119,9 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
     messages: chat.messages,
     status: chat.status,
     error: chat.error,
-    submit: (params: { userText: string; mode: ModeType; model: SupportedChatModelId }) => {
+    submit: async (params: { userText: string; mode: ModeType; model: SupportedChatModelId }) => {
+      await ensureRootAgentsFile();
+
       return chat.sendMessage({
         text: params.userText,
         metadata: {

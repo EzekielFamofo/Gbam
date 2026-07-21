@@ -126,16 +126,20 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
 
   const transactions = await db.$queryRaw<TransactionRow[]>`
     SELECT
-      "id",
-      "type",
-      "creditsDelta",
-      "description",
-      "sessionId",
-      "createdAt"
-    FROM "CreditTransaction"
-    WHERE "userId" = ${userId}
-      AND "type" = ${"usage"}
-    ORDER BY "createdAt" DESC
+      ct."id",
+      ct."type",
+      ct."creditsDelta",
+      ct."description",
+      ct."sessionId",
+      s."title" AS "sessionTitle",
+      ct."createdAt"
+    FROM "CreditTransaction" ct
+    LEFT JOIN "Session" s
+      ON s."id" = ct."sessionId"
+      AND s."userId" = ct."userId"
+    WHERE ct."userId" = ${userId}
+      AND ct."type" = ${"usage"}
+    ORDER BY ct."createdAt" DESC
     LIMIT 10
   `;
 

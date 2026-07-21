@@ -74,11 +74,16 @@ const app = new Hono<AuthenticatedEnv>()
       return c.json({ error: "Session not found" }, 404);
     }
 
-    // Update using primary key 'id'
-    const updatedSession = await db.session.update({
-      where: { id },
-      data: { title },
-    });
+    const [updatedSession] = await db.$transaction([
+      db.session.update({
+        where: { id },
+        data: { title },
+      }),
+      db.creditTransaction.updateMany({
+        where: { userId, sessionId: id },
+        data: { description: title },
+      }),
+    ]);
 
     return c.json(updatedSession);
   })
