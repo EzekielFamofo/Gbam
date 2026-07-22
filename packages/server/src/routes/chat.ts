@@ -66,9 +66,6 @@ function hasPendingToolCalls(message: GbamUIMessage) {
   });
 }
 
-/**
- * Strips provider metadata and client IDs from UI messages before saving to Prisma DB.
- */
 function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[] {
   return messages.map((msg) => {
     const cleanMsg = JSON.parse(JSON.stringify(msg)) as Record<string, unknown>;
@@ -100,10 +97,6 @@ function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[
   });
 }
 
-/**
- * Ensures every toolCallId from assistant output has a corresponding tool response.
- * Handles cases where a local tool execution was interrupted or cancelled on the CLI.
- */
 function completeDanglingToolCalls(messages: ModelMessage[]): ModelMessage[] {
   const validToolCalls = new Map<string, string>();
   const respondedToolCalls = new Set<string>();
@@ -178,6 +171,9 @@ const app = new Hono<AuthenticatedEnv>()
         return c.json({ error: "Session not found" }, 400);
       }
 
+      // Query/resolve projectPath from session or request payload
+      const resolvedProjectPath = projectPath ?? session.projectPath ?? undefined;
+
       // Only "changed" if we've seen a hash before AND it differs now.
       const agentsMdChanged =
         session.agentsMdHash != null && agentsMdHash !== session.agentsMdHash;
@@ -186,7 +182,6 @@ const app = new Hono<AuthenticatedEnv>()
       const summaryStartTime = new Date();
       const tools = getToolContracts(mode);
 
-      // Resolve model, provider, and options from lib/models.ts
       const resolvedModel = resolveChatModel(model);
 
       const previousMessages = Array.isArray(session.messages)
@@ -233,13 +228,14 @@ const app = new Hono<AuthenticatedEnv>()
 
       let completedUsage: LanguageModelUsage | null = null;
 
-      // Ensure waiting state is updated using Prisma (ignores agentsMdHash if undefined)
+      // Update session with waiting state and persist projectPath
       await db.session.update({
         where: { id, userId },
         data: {
           lastMode: mode,
           lastModel: model,
-          agentsMdHash: agentsMdHash, 
+          agentsMdHash: agentsMdHash,
+          projectPath: resolvedProjectPath, 
           lastActivityAt: summaryStartTime,
           status: "waiting",
           updatedAt: summaryStartTime,
@@ -248,7 +244,7 @@ const app = new Hono<AuthenticatedEnv>()
 
       const result = streamText({
         model: resolvedModel.model,
-        system: await buildSystemPrompt({ mode, agentsMdChanged, projectPath }),
+        system: await buildSystemPrompt({ mode, agentsMdChanged, projectPath: resolvedProjectPath }),
         messages: modelMessages,
         tools,
         providerOptions: resolvedModel.providerOptions,
@@ -284,14 +280,14 @@ const app = new Hono<AuthenticatedEnv>()
             event.messages as unknown as GbamUIMessage[]
           );
 
-          // Combined session update incorporating the messages and final state
           await db.session.update({
             where: { id, userId },
             data: {
               messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
               lastMode: mode,
               lastModel: model,
-              agentsMdHash: agentsMdHash, // Ignored safely by Prisma if undefined
+              agentsMdHash: agentsMdHash,
+              projectPath: resolvedProjectPath,
               lastActivityAt: completedAt,
               status: "complete",
               updatedAt: completedAt,
@@ -337,7 +333,6 @@ const app = new Hono<AuthenticatedEnv>()
               providerBalanceCreditsAfter,
             });
 
-            // Replaced raw SQL execution with Prisma's increment api
             await db.session.update({
               where: { id, userId },
               data: {
