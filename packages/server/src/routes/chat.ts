@@ -279,8 +279,6 @@ const app = new Hono<AuthenticatedEnv>()
         async onFinish(event) {
           if (event.isAborted) return;
 
-          if (hasPendingToolCalls(event.responseMessage)) return;
-
           const completedAt = new Date();
 
           const sanitizedMessages = sanitizeUIMessagesForStorage(
