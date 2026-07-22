@@ -46,7 +46,7 @@ export const toolInputSchemas = {
     }),
     // ✅ ADDED: Web fetch input schema
     webfetch: z.object({
-        url: z.string().url().describe("The target URL to fetch web content from"),
+        url: z.string().describe("The target URL to fetch web content from"),
     }),
 } as const;
 

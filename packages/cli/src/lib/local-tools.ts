@@ -250,8 +250,9 @@ export async function executeLocalTool(
             return { success: true as const, path: relative(cwd, resolved) };
         }
         // ✅ ADDED: Web fetch tool execution handler
+        // ✅ FIXED: Use toolInputSchemas.webfetch to parse the input safely without .url() validation constraints
         case "webfetch": {
-            const { url } = z.object({ url: z.string().url() }).parse(input);
+            const { url } = toolInputSchemas.webfetch.parse(input);
             try {
                 const response = await fetch(url, {
                     headers: { "User-Agent": "GBAM-Coding-Assistant/1.0" },
