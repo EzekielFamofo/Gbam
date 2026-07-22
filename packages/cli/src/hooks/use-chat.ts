@@ -35,7 +35,7 @@ type ChatTools = {
 
 export type Message = UIMessage<ChatMessageMetadata, never, ChatTools>;
 
-export function useChat(sessionId: string, initialMessages: Message[]) {
+export function useChat(sessionId: string, initialMessages: Message[], activeProjectPath?: string) {
   const transport = useMemo(() => {
     return new DefaultChatTransport<Message>({
       api: apiClient.chat.$url().toString(),
@@ -59,7 +59,7 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
           DEFAULT_CHAT_MODEL_ID;
 
         // Compute and include the hash of AGENTS.md dynamically on every request
-        const agentsMdHash = await getAgentsMdHash();
+        const agentsMdHash = await getAgentsMdHash(activeProjectPath);
 
         return {
           body: {
@@ -72,7 +72,7 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
         };
       },
     });
-  }, [sessionId]);
+  }, [sessionId, activeProjectPath]);
 
   const chat = useAiChat<Message>({
     id: sessionId,

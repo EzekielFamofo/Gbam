@@ -1,4 +1,6 @@
 import type { ModeType } from "@gbam/shared";
+import { readFile } from "fs/promises";
+import { resolve } from "path";
 
 type SystemPromptParams = {
   mode: ModeType;
@@ -10,6 +12,7 @@ type SystemPromptParams = {
    * directly, since that already carries the current content.
    */
   agentsMdChanged?: boolean;
+  projectPath?: string;
 };
 
 /** Read-only tools available in PLAN mode. */
@@ -35,19 +38,26 @@ function assertUnreachable(value: never, context: string): never {
  * Builds the system prompt for the coding assistant, tailored to the
  * current operating mode and (optionally) the repo's AGENTS.md guidelines.
  */
-export function buildSystemPrompt({
+export async function buildSystemPrompt({
   mode,
   agentsMdContent,
   agentsMdChanged,
-}: SystemPromptParams): string {
+  projectPath
+}: SystemPromptParams): Promise<string> {
+  let resolvedContent = agentsMdContent;
+  if (!resolvedContent) {
+    try {
+      const baseDir = projectPath ? resolve(projectPath) : process.cwd();
+      resolvedContent = await readFile(resolve(baseDir, "AGENTS.md"), "utf-8");
+    } catch {
+      // AGENTS.md doesn't exist in this project yet, which is fine
+    }
+  }
+
   const parts: string[] = [buildRoleSection(mode)];
 
-  // If the caller already has AGENTS.md content in hand (e.g. it's cached in
-  // the DB for this project), inject it directly. Otherwise, since this
-  // server has no filesystem access to the user's repo, tell the agent to
-  // fetch it itself with its own readFile/glob tools - the same way it
-  // reads any other project file.
-  const trimmedGuidelines = agentsMdContent?.trim();
+  // If the caller already has AGENTS.md content in hand or read from disk, inject it directly.
+  const trimmedGuidelines = resolvedContent?.trim();
   if (trimmedGuidelines) {
     parts.push(
 `<project_guidelines>

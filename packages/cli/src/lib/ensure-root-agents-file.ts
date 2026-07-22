@@ -1,6 +1,6 @@
 import { constants } from "node:fs";
 import { access, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 const DEFAULT_AGENTS_FILE_CONTENT = `# AGENTS.md
 
@@ -13,15 +13,18 @@ Add any project-specific guidance here for future sessions, for example:
 - deployment notes
 `;
 
-let ensureRootAgentsFilePromise: Promise<void> | null = null;
+// Track initialization promises per project directory to support multi-project workflows
+const initializationPromises = new Map<string, Promise<void>>();
 
-export async function ensureRootAgentsFile() {
-  if (ensureRootAgentsFilePromise) {
-    return ensureRootAgentsFilePromise;
+export async function ensureRootAgentsFile(projectPath?: string) {
+  const baseDir = projectPath ? resolve(projectPath) : process.cwd();
+
+  if (initializationPromises.has(baseDir)) {
+    return initializationPromises.get(baseDir)!;
   }
 
-  ensureRootAgentsFilePromise = (async () => {
-    const agentsFilePath = join(process.cwd(), "AGENTS.md");
+  const promise = (async () => {
+    const agentsFilePath = join(baseDir, "AGENTS.md");
 
     try {
       await access(agentsFilePath, constants.F_OK);
@@ -44,5 +47,6 @@ export async function ensureRootAgentsFile() {
     }
   })();
 
-  return ensureRootAgentsFilePromise;
+  initializationPromises.set(baseDir, promise);
+  return promise;
 }
