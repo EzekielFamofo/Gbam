@@ -44,6 +44,10 @@ export const toolInputSchemas = {
         description: z.string().optional().describe("Short description of the command"),
         timeout: z.number().optional().describe("Timeout in milliseconds"),
     }),
+    // ✅ ADDED: Web fetch input schema
+    webfetch: z.object({
+        url: z.string().url().describe("The target URL to fetch web content from"),
+    }),
 } as const;
 
 export const readOnlyToolContracts = {
@@ -64,7 +68,12 @@ export const readOnlyToolContracts = {
         description:
             "Search file contents with a regular expression under the current project directory.",
             inputSchema: toolInputSchemas.grep,
-    })
+    }),
+    // ✅ ADDED: Web fetch tool contract available in PLAN and BUILD modes
+    webfetch: tool({
+        description: "Fetch web content from a URL to look up documentation or online resources.",
+        inputSchema: toolInputSchemas.webfetch,
+    }),
 } as const;
 
 export const buildToolContracts = {

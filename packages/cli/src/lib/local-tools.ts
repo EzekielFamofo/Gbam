@@ -2,22 +2,15 @@ import { createHash } from "crypto";
 import { mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "path";
 import { toolInputSchemas, Mode, type ModeType } from "@gbam/shared";
-
+import { z } from "zod";
 
 const MAX_FILE_SIZE = 40_000;     
 const MAX_RESULTS = 400;         
 const MAX_MATCHES = 100;         
-const MAX_OUTPUT = 60_000;      
+const MAX_OUTPUT = 60_000;       
 const DEFAULT_TIMEOUT = 45_000;  
 const AGENTS_MD_FILENAME = "AGENTS.md";
 
-/**
- * Resolves `path` against `baseDir` (process.cwd() if omitted) and
- * guarantees the result stays inside it. Accepting an explicit baseDir
- * lets every tool operate against a chosen project directory instead of
- * always assuming this process's cwd is the project - which is what makes
- * this work correctly no matter where the project actually lives.
- */
 function resolveInsideCwd(path: string, baseDir: string = process.cwd()) {
     const cwd = resolve(baseDir);
     const resolved = resolve(cwd, path);
@@ -36,14 +29,6 @@ function truncate(value: string, limit: number) {
         : value;
 }
 
-/**
- * Reads the project's AGENTS.md, if present at the repo root, and returns
- * both its stable hash and the content that should be injected into the
- * server-side system prompt. We cap the injected content to the same limit
- * used by the readFile tool so repo guidance can't accidentally balloon the
- * prompt beyond reason; if truncated, the agent can still read the full file
- * later with its own tools.
- */
 type AgentsMdContext = {
     hash?: string;
     content?: string;
@@ -77,18 +62,17 @@ export async function executeLocalTool(
     mode: ModeType,
     projectPath?: string,
 ) {
-    if (mode === Mode.PLAN && !["readFile", "listDirectory", "glob", "grep"]. includes(toolName)) {
+    // Include "webfetch" in PLAN mode since web fetching is a read-only research/documentation activity
+    if (mode === Mode.PLAN && !["readFile", "listDirectory", "glob", "grep", "webfetch"].includes(toolName)) {
         throw new Error(`Tool ${toolName} is not available in PLAN mode`);
     }
 
     switch (toolName) {
-        // ✅ UPDATED: Supports line-range pagination and appends explicit context guardrail system warnings
         case "readFile": {
             const { path, startLine, lineCount } = toolInputSchemas.readFile.parse(input);
             const { resolved } = resolveInsideCwd(path, projectPath);
             const content = await readFile(resolved, "utf-8");
 
-            // Line pagination logic
             if (startLine !== undefined || lineCount !== undefined) {
                 const lines = content.split("\n");
                 const start = Math.max(0, (startLine ?? 1) - 1);
@@ -106,7 +90,6 @@ export async function executeLocalTool(
                 };
             }
 
-            // Traditional fallback reading with helpful warning
             return content.length > MAX_FILE_SIZE
                 ? { 
                     content: content.slice(0, MAX_FILE_SIZE), 
@@ -134,7 +117,6 @@ export async function executeLocalTool(
 
             return { path: relative(cwd, resolved) || ".", entries: results }
         }
-
         case "glob": {
             const { path, pattern, include } = toolInputSchemas.glob.parse(input);
             const { resolved, cwd } = resolveInsideCwd(path, projectPath);
@@ -245,27 +227,49 @@ export async function executeLocalTool(
             return { matches, ...(truncated ? { truncated: true } : {}) };
         }
         case "writeFile": {
-        const { path, content } = toolInputSchemas.writeFile.parse(input);
-        const { cwd, resolved } = resolveInsideCwd(path, projectPath);
-        await mkdir(dirname(resolved), { recursive: true });
-        await writeFile(resolved, content, "utf-8");
-        return {
-            success: true as const,
-            path: relative(cwd, resolved),
-            bytesWritten: Buffer.byteLength(content, "utf-8"),
-        };
+            const { path, content } = toolInputSchemas.writeFile.parse(input);
+            const { cwd, resolved } = resolveInsideCwd(path, projectPath);
+            await mkdir(dirname(resolved), { recursive: true });
+            await writeFile(resolved, content, "utf-8");
+            return {
+                success: true as const,
+                path: relative(cwd, resolved),
+                bytesWritten: Buffer.byteLength(content, "utf-8"),
+            };
         }
         case "editFile": {
-        const { path, oldString, newString } = toolInputSchemas.editFile.parse(input);
-        const { cwd, resolved } = resolveInsideCwd(path, projectPath);
-        const content = await readFile(resolved, "utf-8");
-        const occurrences = content.split(oldString).length - 1;
+            const { path, oldString, newString } = toolInputSchemas.editFile.parse(input);
+            const { cwd, resolved } = resolveInsideCwd(path, projectPath);
+            const content = await readFile(resolved, "utf-8");
+            const occurrences = content.split(oldString).length - 1;
 
-        if (occurrences === 0) throw new Error("oldString not found in file");
-        if (occurrences > 1) throw new Error(`oldString is ambiguous; found ${occurrences} matches`);
+            if (occurrences === 0) throw new Error("oldString not found in file");
+            if (occurrences > 1) throw new Error(`oldString is ambiguous; found ${occurrences} matches`);
 
-        await writeFile(resolved, content.replace(oldString, newString), "utf-8");
-        return { success: true as const, path: relative(cwd, resolved) };
+            await writeFile(resolved, content.replace(oldString, newString), "utf-8");
+            return { success: true as const, path: relative(cwd, resolved) };
+        }
+        // ✅ ADDED: Web fetch tool execution handler
+        case "webfetch": {
+            const { url } = z.object({ url: z.string().url() }).parse(input);
+            try {
+                const response = await fetch(url, {
+                    headers: { "User-Agent": "GBAM-Coding-Assistant/1.0" },
+                });
+
+                if (!response.ok) {
+                    return { error: `Failed to fetch URL: ${response.statusText}` };
+                }
+
+                const html = await response.text();
+                return {
+                    url,
+                    status: response.status,
+                    content: truncate(html, MAX_OUTPUT),
+                };
+            } catch (error) {
+                return { error: error instanceof Error ? error.message : String(error) };
+            }
         }
         case "bash": {
             const { command, timeout = DEFAULT_TIMEOUT } = toolInputSchemas.bash.parse(input);

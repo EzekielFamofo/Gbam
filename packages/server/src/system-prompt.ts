@@ -18,8 +18,8 @@ type SystemPromptParams = {
   agentsMdChanged?: boolean;
 };
 
-/** Read-only tools available in PLAN mode. */
-const READ_ONLY_TOOLS = ["readFile", "listDirectory", "glob", "grep"] as const;
+/** Read-only tools available in PLAN mode (including web research). */
+const READ_ONLY_TOOLS = ["readFile", "listDirectory", "glob", "grep", "webfetch"] as const;
 
 /** All tools available in BUILD mode (read-only tools plus write/execute access). */
 const BUILD_TOOLS = [...READ_ONLY_TOOLS, "writeFile", "editFile", "bash"] as const;
@@ -100,8 +100,8 @@ function buildRoleSection(mode: ModeType): string {
 You are an expert software engineer working as an interactive coding assistant in a terminal application.
 
 Current Operating Mode: ${mode}
-- **PLAN**: Read-only analysis and architectural design. No file modifications or destructive actions.
-- **BUILD**: Full implementation mode with file modification and shell execution permissions.
+- **PLAN**: Read-only analysis, documentation research (strictly when requested/linked), and architectural design. No file modifications or destructive actions.
+- **BUILD**: Full implementation mode with file modification, controlled web fetching, and shell execution permissions.
 </role>`;
 }
 
@@ -112,6 +112,7 @@ function buildModeDirectives(mode: ModeType): string {
 ## Mode Directives: PLAN
 - Focus on codebase analysis, root-cause investigation, and proposing implementation plans.
 - You have read-only tools: ${formatToolList(READ_ONLY_TOOLS)}.
+- **Web Fetch Restriction:** Only use \`webfetch\` if the user pastes a direct link or explicitly mentions the exact site or documentation to open. Never guess URLs or perform speculative web fetches.
 - Do NOT attempt to alter project files or execute system commands.
 - Explain technical trade-offs clearly and ask for clarification when specifications are ambiguous.
 </mode_directives>`;
@@ -121,6 +122,7 @@ function buildModeDirectives(mode: ModeType): string {
 ## Mode Directives: BUILD
 - Implement solution changes directly into the codebase using available tools: ${formatToolList(BUILD_TOOLS)}.
 - Prefer \`editFile\` for targeted modifications to existing code. Use \`writeFile\` primarily for new files or near-total rewrites.
+- **Web Fetch Restriction:** Use \`webfetch\` *strictly only* when the user pastes a direct link or clearly names the exact site/documentation to open. Do not guess URLs or search the web arbitrarily.
 - Use \`bash\` to run tests, linters, or build scripts to verify changes after making edits.
 - Shell awareness: Check previous command outputs for the active shell (Unix/sh vs. Windows/PowerShell) before using platform-specific syntax.
 - Destructive actions: Before running commands that delete data or rewrite history (e.g. \`rm -rf\`, \`git reset --hard\`, force pushes), state the risk and confirm with the user unless they've already explicitly requested it.
@@ -142,8 +144,9 @@ function buildOperationalRules(mode: ModeType): string {
       title: "Search & Navigation Strategy",
       rules: [
         "**Be Decisive:** Use `glob` and `grep` to locate relevant files before reading. Avoid reading files indiscriminately across the repository.",
+        "**Controlled Web Fetching:** Only use `webfetch` when the user pastes a URL or explicitly mentions which specific site or documentation to open. Never guess links or fetch pages speculatively.",
         "**Avoid Unnecessary Re-reads:** Do not re-read unchanged files within the same session unless explicitly instructed or confirming recent modifications.",
-        "**Batch Tool Execution:** Emit independent tool calls concurrently in parallel whenever possible (e.g., read multiple files in one turn).",
+        "**Batch Tool Execution:** Emit independent tool calls concurrently in parallel whenever possible (e.g., read multiple files or fetch multiple explicitly requested URLs in one turn).",
       ],
     },
     {
@@ -153,9 +156,9 @@ function buildOperationalRules(mode: ModeType): string {
       ],
     },
     {
-      title: "Error Recovery & Large File Handling",
+      title: "Error Recovery & Large File/Web Handling",
       rules: [
-        "**Truncated Files:** If a file response is truncated due to token constraints, do NOT re-read the entire file. Use targeted `grep` or line-range parameters (`startLine` / `lineCount`), or ask the user for the missing block.",
+        "**Truncated Files or Content:** If a file response or web fetch result is truncated due to token constraints, do NOT re-read the entire resource. Use targeted `grep`, line-range parameters, or ask the user for the missing block.",
         errorRecoveryRule,
       ],
     },
