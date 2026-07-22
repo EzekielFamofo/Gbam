@@ -3,23 +3,31 @@ import { mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "path";
 import { toolInputSchemas, Mode, type ModeType } from "@gbam/shared";
 
+
 const MAX_FILE_SIZE = 40_000;     
-const MAX_RESULTS = 400;        
-const MAX_MATCHES = 100;        
+const MAX_RESULTS = 400;         
+const MAX_MATCHES = 100;         
 const MAX_OUTPUT = 60_000;      
 const DEFAULT_TIMEOUT = 45_000;  
 const AGENTS_MD_FILENAME = "AGENTS.md";
 
-function resolveInsideCwd(path: string, projectPath?: string) {
-    const baseDir = projectPath ? resolve(projectPath) : process.cwd();
-    const resolved = resolve(baseDir, path);
-    const rel = relative(baseDir, resolved);
+/**
+ * Resolves `path` against `baseDir` (process.cwd() if omitted) and
+ * guarantees the result stays inside it. Accepting an explicit baseDir
+ * lets every tool operate against a chosen project directory instead of
+ * always assuming this process's cwd is the project - which is what makes
+ * this work correctly no matter where the project actually lives.
+ */
+function resolveInsideCwd(path: string, baseDir: string = process.cwd()) {
+    const cwd = resolve(baseDir);
+    const resolved = resolve(cwd, path);
+    const rel = relative(cwd, resolved);
 
     if (rel.startsWith("..") || isAbsolute(rel)) {
-        throw new Error("Path is outside the project directory");
+        throw new Error("Path is outside the project directory")
     }
 
-    return { cwd: baseDir, resolved };
+    return { cwd, resolved };
 }
 
 function truncate(value: string, limit: number) {
@@ -28,10 +36,16 @@ function truncate(value: string, limit: number) {
         : value;
 }
 
+/**
+ * Computes a stable hash of the project's AGENTS.md, if one exists at the
+ * given project's root (process.cwd() if no path is given). Call this once
+ * per outgoing request and send the result as `agentsMdHash` - the server
+ * compares it against the last hash it saw for this session to decide
+ * whether to tell the agent the file has changed.
+ */
 export async function getAgentsMdHash(projectPath?: string): Promise<string | undefined> {
     try {
-        const baseDir = projectPath ? resolve(projectPath) : process.cwd();
-        const resolved = resolve(baseDir, AGENTS_MD_FILENAME);
+        const { resolved } = resolveInsideCwd(AGENTS_MD_FILENAME, projectPath);
         const content = await readFile(resolved, "utf-8");
         return createHash("sha256").update(content.trim()).digest("hex");
     } catch {
@@ -39,17 +53,24 @@ export async function getAgentsMdHash(projectPath?: string): Promise<string | un
     }
 }
 
-export async function executeLocalTool(toolName: string, input: unknown, mode: ModeType, projectPath?: string) {
-    if (mode === Mode.PLAN && !["readFile", "listDirectory", "glob", "grep"].includes(toolName)) {
+export async function executeLocalTool(
+    toolName: string,
+    input: unknown,
+    mode: ModeType,
+    projectPath?: string,
+) {
+    if (mode === Mode.PLAN && !["readFile", "listDirectory", "glob", "grep"]. includes(toolName)) {
         throw new Error(`Tool ${toolName} is not available in PLAN mode`);
     }
 
     switch (toolName) {
+        // ✅ UPDATED: Supports line-range pagination and appends explicit context guardrail system warnings
         case "readFile": {
             const { path, startLine, lineCount } = toolInputSchemas.readFile.parse(input);
             const { resolved } = resolveInsideCwd(path, projectPath);
             const content = await readFile(resolved, "utf-8");
 
+            // Line pagination logic
             if (startLine !== undefined || lineCount !== undefined) {
                 const lines = content.split("\n");
                 const start = Math.max(0, (startLine ?? 1) - 1);
@@ -67,6 +88,7 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
                 };
             }
 
+            // Traditional fallback reading with helpful warning
             return content.length > MAX_FILE_SIZE
                 ? { 
                     content: content.slice(0, MAX_FILE_SIZE), 
@@ -92,8 +114,9 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
                 a.type !== b.type ? (a.type === "directory" ? -1 : 1): a.name.localeCompare(b.name),
             );
 
-            return { path: relative(cwd, resolved) || ".", entries: results };
+            return { path: relative(cwd, resolved) || ".", entries: results }
         }
+
         case "glob": {
             const { path, pattern, include } = toolInputSchemas.glob.parse(input);
             const { resolved, cwd } = resolveInsideCwd(path, projectPath);
@@ -204,27 +227,27 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
             return { matches, ...(truncated ? { truncated: true } : {}) };
         }
         case "writeFile": {
-            const { path, content } = toolInputSchemas.writeFile.parse(input);
-            const { cwd, resolved } = resolveInsideCwd(path, projectPath);
-            await mkdir(dirname(resolved), { recursive: true });
-            await writeFile(resolved, content, "utf-8");
-            return {
-                success: true as const,
-                path: relative(cwd, resolved),
-                bytesWritten: Buffer.byteLength(content, "utf-8"),
-            };
+        const { path, content } = toolInputSchemas.writeFile.parse(input);
+        const { cwd, resolved } = resolveInsideCwd(path, projectPath);
+        await mkdir(dirname(resolved), { recursive: true });
+        await writeFile(resolved, content, "utf-8");
+        return {
+            success: true as const,
+            path: relative(cwd, resolved),
+            bytesWritten: Buffer.byteLength(content, "utf-8"),
+        };
         }
         case "editFile": {
-            const { path, oldString, newString } = toolInputSchemas.editFile.parse(input);
-            const { cwd, resolved } = resolveInsideCwd(path, projectPath);
-            const content = await readFile(resolved, "utf-8");
-            const occurrences = content.split(oldString).length - 1;
+        const { path, oldString, newString } = toolInputSchemas.editFile.parse(input);
+        const { cwd, resolved } = resolveInsideCwd(path, projectPath);
+        const content = await readFile(resolved, "utf-8");
+        const occurrences = content.split(oldString).length - 1;
 
-            if (occurrences === 0) throw new Error("oldString not found in file");
-            if (occurrences > 1) throw new Error(`oldString is ambiguous; found ${occurrences} matches`);
+        if (occurrences === 0) throw new Error("oldString not found in file");
+        if (occurrences > 1) throw new Error(`oldString is ambiguous; found ${occurrences} matches`);
 
-            await writeFile(resolved, content.replace(oldString, newString), "utf-8");
-            return { success: true as const, path: relative(cwd, resolved) };
+        await writeFile(resolved, content.replace(oldString, newString), "utf-8");
+        return { success: true as const, path: relative(cwd, resolved) };
         }
         case "bash": {
             const { command, timeout = DEFAULT_TIMEOUT } = toolInputSchemas.bash.parse(input);

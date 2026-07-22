@@ -70,7 +70,7 @@ export function useChat(sessionId: string, initialMessages: Message[], projectPa
             mode: resolvedMode,
             model: resolvedModel,
             agentsMdHash,
-            projectPath: resolvedProjectPath, // 👈 Use the hook parameter instead of process.cwd()
+            projectPath: resolvedProjectPath,
           },
         };
       },
@@ -85,7 +85,11 @@ export function useChat(sessionId: string, initialMessages: Message[], projectPa
       const mode =
         chat.messages.findLast((m) => m.metadata?.mode)?.metadata?.mode ?? "BUILD";
 
-      void executeLocalTool(toolCall.toolName, toolCall.input, mode)
+      // projectPath must be threaded through here too - otherwise the agent's
+      // tool calls (readFile, writeFile, bash, ...) resolve against wherever
+      // this process happens to be running, not the project the hash/prompt
+      // were computed for.
+      void executeLocalTool(toolCall.toolName, toolCall.input, mode, resolvedProjectPath)
         .then((output) =>
           chat.addToolOutput({
             tool: toolCall.toolName as keyof ChatTools,

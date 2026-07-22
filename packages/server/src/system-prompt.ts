@@ -1,9 +1,12 @@
 import type { ModeType } from "@gbam/shared";
-import { readFile } from "fs/promises";
-import { resolve } from "path";
 
 type SystemPromptParams = {
   mode: ModeType;
+  /**
+   * Pass this only if you already have AGENTS.md content in hand (e.g. from
+   * a DB cache). The server itself has no filesystem access to the user's
+   * project - it never reads the file directly.
+   */
   agentsMdContent?: string;
   /**
    * Set by the caller when it knows (via a content hash from the CLI, which
@@ -12,7 +15,6 @@ type SystemPromptParams = {
    * directly, since that already carries the current content.
    */
   agentsMdChanged?: boolean;
-  projectPath?: string;
 };
 
 /** Read-only tools available in PLAN mode. */
@@ -37,26 +39,22 @@ function assertUnreachable(value: never, context: string): never {
 /**
  * Builds the system prompt for the coding assistant, tailored to the
  * current operating mode and (optionally) the repo's AGENTS.md guidelines.
+ *
+ * Kept async for forward-compatibility (e.g. a future DB-backed guidelines
+ * lookup) even though the current implementation is synchronous.
  */
 export async function buildSystemPrompt({
   mode,
   agentsMdContent,
   agentsMdChanged,
-  projectPath
 }: SystemPromptParams): Promise<string> {
-  let resolvedContent = agentsMdContent;
-  if (!resolvedContent) {
-    try {
-      const baseDir = projectPath ? resolve(projectPath) : process.cwd();
-      resolvedContent = await readFile(resolve(baseDir, "AGENTS.md"), "utf-8");
-    } catch {
-      // AGENTS.md doesn't exist in this project yet, which is fine
-    }
-  }
-
   const parts: string[] = [buildRoleSection(mode)];
 
-  const trimmedGuidelines = resolvedContent?.trim();
+  // If the caller already has AGENTS.md content in hand, inject it directly.
+  // Otherwise, since this server has no filesystem access to the user's
+  // repo, tell the agent to fetch it itself with its own readFile/glob
+  // tools - the same way it reads any other project file.
+  const trimmedGuidelines = agentsMdContent?.trim();
   if (trimmedGuidelines) {
     parts.push(
 `<project_guidelines>
@@ -64,7 +62,6 @@ ${trimmedGuidelines}
 </project_guidelines>`
     );
 
-    // Explicitly notify the model when guidelines change during an active session
     if (agentsMdChanged) {
       parts.push(
 `<repo_guidelines_update>

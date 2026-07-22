@@ -171,17 +171,19 @@ const app = new Hono<AuthenticatedEnv>()
         return c.json({ error: "Session not found" }, 400);
       }
 
-      // Query/resolve projectPath from session or request payload
       const resolvedProjectPath = projectPath ?? session.projectPath ?? undefined;
 
-      // Safely check if hash changed: requires both hashes to exist and mismatch
+      // "Changed" only means something once we've seen a hash before. A
+      // first-ever hash, or no hash at all (no AGENTS.md in this project),
+      // isn't a "change" - the discovery directive already covers that via
+      // the fresh-session case in buildSystemPrompt.
       const agentsMdChanged = Boolean(
-        session.agentsMdHash &&
-        agentsMdHash &&
-        session.agentsMdHash !== agentsMdHash // Wait, this is always false if they are equal, let's fix it to compare correctly
+        session.agentsMdHash && agentsMdHash && session.agentsMdHash !== agentsMdHash
       );
-      // Correction for comparison:
-      // session.agentsMdHash !== agentsMdHash
+
+      // What to persist for next time: the latest hash we were sent, or
+      // fall back to what was already stored if this request didn't send one.
+      const nextAgentsMdHash = agentsMdHash ?? session.agentsMdHash;
 
       const startTime = Date.now();
       const summaryStartTime = new Date();
@@ -233,22 +235,12 @@ const app = new Hono<AuthenticatedEnv>()
 
       let completedUsage: LanguageModelUsage | null = null;
 
-      // Update session state, preserving hash via nullish coalescing
-      const currentAgentsMdHash = agentsMdHash ?? session.agentsMdHash;
-
-      // Re-evaluate agentsMdChanged cleanly using session vs incoming
-      const isAgentsMdChanged = Boolean(
-        session.agentsMdHash &&
-        agentsMdHash &&
-        session.agentsMdHash !== agentsMdHash
-      );
-
       await db.session.update({
         where: { id, userId },
         data: {
           lastMode: mode,
           lastModel: model,
-          agentsMdHash: currentAgentsMdHash,
+          agentsMdHash: nextAgentsMdHash,
           projectPath: resolvedProjectPath, 
           lastActivityAt: summaryStartTime,
           status: "waiting",
@@ -258,7 +250,7 @@ const app = new Hono<AuthenticatedEnv>()
 
       const result = streamText({
         model: resolvedModel.model,
-        system: await buildSystemPrompt({ mode, agentsMdChanged: isAgentsMdChanged, projectPath: resolvedProjectPath }),
+        system: await buildSystemPrompt({ mode, agentsMdChanged }),
         messages: modelMessages,
         tools,
         providerOptions: resolvedModel.providerOptions,
@@ -300,7 +292,7 @@ const app = new Hono<AuthenticatedEnv>()
               messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
               lastMode: mode,
               lastModel: model,
-              agentsMdHash: currentAgentsMdHash,
+              agentsMdHash: nextAgentsMdHash,
               projectPath: resolvedProjectPath,
               lastActivityAt: completedAt,
               status: "complete",
