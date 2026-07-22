@@ -13,7 +13,7 @@ const app = new Hono<InternalWebAuthEnv>()
     // Hardcode the redirect directly to the frontend dashboard.
     // Ensure this matches your production Next.js URL.
     const frontendUrl = process.env.WEB_URL || "https://gbam.dev";
-    const successUrl = `${frontendUrl}/dashboard`;
+    const successUrl = `${frontendUrl}/billing/success`;
 
     return c.json({
       url: await createCheckoutUrl({
@@ -22,5 +22,6 @@ const app = new Hono<InternalWebAuthEnv>()
       }),
     });
   });
+  
 
 export default app;
