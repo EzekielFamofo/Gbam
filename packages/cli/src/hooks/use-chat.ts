@@ -35,7 +35,9 @@ type ChatTools = {
 
 export type Message = UIMessage<ChatMessageMetadata, never, ChatTools>;
 
-export function useChat(sessionId: string, initialMessages: Message[], activeProjectPath?: string) {
+export function useChat(sessionId: string, initialMessages: Message[], projectPath?: string) {
+  const resolvedProjectPath = projectPath ?? process.cwd();
+
   const transport = useMemo(() => {
     return new DefaultChatTransport<Message>({
       api: apiClient.chat.$url().toString(),
@@ -59,7 +61,7 @@ export function useChat(sessionId: string, initialMessages: Message[], activePro
           DEFAULT_CHAT_MODEL_ID;
 
         // Compute and include the hash of AGENTS.md dynamically on every request
-        const agentsMdHash = await getAgentsMdHash(activeProjectPath);
+        const agentsMdHash = await getAgentsMdHash(resolvedProjectPath);
 
         return {
           body: {
@@ -68,11 +70,12 @@ export function useChat(sessionId: string, initialMessages: Message[], activePro
             mode: resolvedMode,
             model: resolvedModel,
             agentsMdHash,
+            projectPath: resolvedProjectPath, // 👈 Use the hook parameter instead of process.cwd()
           },
         };
       },
     });
-  }, [sessionId, activeProjectPath]);
+  }, [sessionId, resolvedProjectPath]);
 
   const chat = useAiChat<Message>({
     id: sessionId,

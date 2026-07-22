@@ -56,7 +56,6 @@ export async function buildSystemPrompt({
 
   const parts: string[] = [buildRoleSection(mode)];
 
-  // If the caller already has AGENTS.md content in hand or read from disk, inject it directly.
   const trimmedGuidelines = resolvedContent?.trim();
   if (trimmedGuidelines) {
     parts.push(
@@ -64,6 +63,16 @@ export async function buildSystemPrompt({
 ${trimmedGuidelines}
 </project_guidelines>`
     );
+
+    // Explicitly notify the model when guidelines change during an active session
+    if (agentsMdChanged) {
+      parts.push(
+`<repo_guidelines_update>
+## Notice: Guidelines Updated
+- AGENTS.md has been modified by the user since your last turn. Review the updated project guidelines above carefully as they now supersede previous instructions.
+</repo_guidelines_update>`
+      );
+    }
   } else {
     parts.push(buildAgentsMdDiscoveryDirective(agentsMdChanged ?? false));
   }
