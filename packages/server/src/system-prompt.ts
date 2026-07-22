@@ -48,7 +48,19 @@ export async function buildSystemPrompt({
   agentsMdContent,
   agentsMdChanged,
 }: SystemPromptParams): Promise<string> {
-  const parts: string[] = [buildRoleSection(mode)];
+  const parts: string[] = [];
+
+  // Positioned first, ahead of the role section, when true. This isn't a
+  // passive reminder like the discovery directive below - it needs to
+  // override the model's default judgment about whether a tool call is
+  // warranted for a given turn, so it gets top billing instead of being a
+  // few sections down where weaker/faster models are more likely to skip
+  // it on turns that don't superficially look file-related.
+  if (agentsMdChanged) {
+    parts.push(buildAgentsMdChangedNotice());
+  }
+
+  parts.push(buildRoleSection(mode));
 
   // If the caller already has AGENTS.md content in hand, inject it directly.
   // Otherwise, since this server has no filesystem access to the user's
@@ -61,17 +73,8 @@ export async function buildSystemPrompt({
 ${trimmedGuidelines}
 </project_guidelines>`
     );
-
-    if (agentsMdChanged) {
-      parts.push(
-`<repo_guidelines_update>
-## Notice: Guidelines Updated
-- AGENTS.md has been modified by the user since your last turn. Review the updated project guidelines above carefully as they now supersede previous instructions.
-</repo_guidelines_update>`
-      );
-    }
   } else {
-    parts.push(buildAgentsMdDiscoveryDirective(agentsMdChanged ?? false));
+    parts.push(buildAgentsMdDiscoveryDirective());
   }
 
   parts.push(buildModeDirectives(mode));
@@ -80,20 +83,20 @@ ${trimmedGuidelines}
   return parts.join("\n\n");
 }
 
-function buildAgentsMdDiscoveryDirective(changed: boolean): string {
-  if (changed) {
-    return `<repo_guidelines_discovery>
-## Repository Guidelines Discovery
-- AGENTS.md has changed since you last read it in this session. Re-read it now via \`readFile\` before continuing, and treat its updated contents as authoritative project guidelines for the rest of the session.
-</repo_guidelines_discovery>`;
-  }
+function buildAgentsMdChangedNotice(): string {
+  return `<priority_notice>
+## PRIORITY: AGENTS.md Has Changed
+AGENTS.md was modified since you last read it in this session. Before writing your response to the user's message below - regardless of what that message is about, even if it looks unrelated to code or files - call \`readFile\` on AGENTS.md and incorporate its current contents. AGENTS.md can contain instructions that apply to every response, not just coding tasks, so this step is not optional and is not limited to file-editing requests.
+</priority_notice>`;
+}
 
+function buildAgentsMdDiscoveryDirective(): string {
   return `<repo_guidelines_discovery>
 ## Repository Guidelines Discovery
 - At the start of a new session, before making any code changes, check the repository root for an \`AGENTS.md\` file (or similar contributor guide) using \`readFile\`. If its location isn't obvious, use \`glob\` to locate it.
-- If found, treat its contents as authoritative project guidelines for the rest of the session, on par with the instructions in this prompt.
+- If found, treat its contents as authoritative project guidelines for the rest of the session, on par with the instructions in this prompt - this can include instructions that apply to every response, not just coding tasks.
 - If not found, proceed without repo-specific guidelines - do not ask the user to create one.
-- Do not re-read \`AGENTS.md\` on every turn. You'll be told explicitly here if it has changed since your last read; otherwise, only re-read it if the user says so.
+- Do not re-read \`AGENTS.md\` on every turn. You'll be told explicitly (at the top of this prompt) if it has changed since your last read; otherwise, only re-read it if the user says so.
 </repo_guidelines_discovery>`;
 }
 
