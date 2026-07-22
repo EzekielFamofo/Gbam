@@ -17,7 +17,7 @@ import {
 import { apiClient } from "../lib/api-client";
 import { getAuth } from "../lib/auth";
 import { ensureRootAgentsFile } from "../lib/ensure-root-agents-file";
-import { executeLocalTool, getAgentsMdHash } from "../lib/local-tools";
+import { executeLocalTool, getAgentsMdContext } from "../lib/local-tools";
 
 export type ChatMessageMetadata = {
   mode?: ModeType;
@@ -60,8 +60,9 @@ export function useChat(sessionId: string, initialMessages: Message[], projectPa
           bufferedMessages.findLast((m) => m.metadata?.model)?.metadata?.model ??
           DEFAULT_CHAT_MODEL_ID;
 
-        // Compute and include the hash of AGENTS.md dynamically on every request
-        const agentsMdHash = await getAgentsMdHash(resolvedProjectPath);
+        // Send the current AGENTS.md state on every request so the server can
+        // inject the latest repo guidance directly into the system prompt.
+        const agentsMd = await getAgentsMdContext(resolvedProjectPath);
 
         return {
           body: {
@@ -69,7 +70,8 @@ export function useChat(sessionId: string, initialMessages: Message[], projectPa
             messages: bufferedMessages,
             mode: resolvedMode,
             model: resolvedModel,
-            agentsMdHash,
+            agentsMdHash: agentsMd.hash,
+            agentsMdContent: agentsMd.content,
             projectPath: resolvedProjectPath,
           },
         };

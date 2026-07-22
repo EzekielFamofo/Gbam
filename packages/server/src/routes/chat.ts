@@ -47,6 +47,7 @@ const submitSchema = z.object({
   mode: modeSchema,
   model: z.string().refine(isSupportedChatModel, "Unsupported model"),
   agentsMdHash: z.string().optional(),
+  agentsMdContent: z.string().optional(),
   projectPath: z.string().optional(),
 });
 
@@ -161,7 +162,7 @@ const app = new Hono<AuthenticatedEnv>()
     requireCreditsBalance,
     async (c) => {
       const userId = c.get("userId");
-      const { id, messages, mode, model, agentsMdHash, projectPath } = c.req.valid("json");
+      const { id, messages, mode, model, agentsMdHash, agentsMdContent, projectPath } = c.req.valid("json");
 
       const session = await db.session.findUnique({
         where: { id, userId }
@@ -250,7 +251,7 @@ const app = new Hono<AuthenticatedEnv>()
 
       const result = streamText({
         model: resolvedModel.model,
-        system: await buildSystemPrompt({ mode, agentsMdChanged }),
+        system: await buildSystemPrompt({ mode, agentsMdContent, agentsMdChanged }),
         messages: modelMessages,
         tools,
         providerOptions: resolvedModel.providerOptions,

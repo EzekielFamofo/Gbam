@@ -37,20 +37,38 @@ function truncate(value: string, limit: number) {
 }
 
 /**
- * Computes a stable hash of the project's AGENTS.md, if one exists at the
- * given project's root (process.cwd() if no path is given). Call this once
- * per outgoing request and send the result as `agentsMdHash` - the server
- * compares it against the last hash it saw for this session to decide
- * whether to tell the agent the file has changed.
+ * Reads the project's AGENTS.md, if present at the repo root, and returns
+ * both its stable hash and the content that should be injected into the
+ * server-side system prompt. We cap the injected content to the same limit
+ * used by the readFile tool so repo guidance can't accidentally balloon the
+ * prompt beyond reason; if truncated, the agent can still read the full file
+ * later with its own tools.
  */
-export async function getAgentsMdHash(projectPath?: string): Promise<string | undefined> {
+type AgentsMdContext = {
+    hash?: string;
+    content?: string;
+};
+
+export async function getAgentsMdContext(projectPath?: string): Promise<AgentsMdContext> {
     try {
         const { resolved } = resolveInsideCwd(AGENTS_MD_FILENAME, projectPath);
-        const content = await readFile(resolved, "utf-8");
-        return createHash("sha256").update(content.trim()).digest("hex");
+        const rawContent = await readFile(resolved, "utf-8");
+        const normalizedForHash = rawContent.trim();
+        const content = rawContent.length > MAX_FILE_SIZE
+            ? `${rawContent.slice(0, MAX_FILE_SIZE)}\n\n[SYSTEM WARNING: AGENTS.md was truncated to ${MAX_FILE_SIZE} characters when sent with the chat request. If you need the rest, read AGENTS.md directly with the readFile tool.]`
+            : rawContent;
+
+        return {
+            hash: createHash("sha256").update(normalizedForHash).digest("hex"),
+            content,
+        };
     } catch {
-        return undefined;
+        return {};
     }
+}
+
+export async function getAgentsMdHash(projectPath?: string): Promise<string | undefined> {
+    return (await getAgentsMdContext(projectPath)).hash;
 }
 
 export async function executeLocalTool(

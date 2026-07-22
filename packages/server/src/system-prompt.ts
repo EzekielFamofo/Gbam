@@ -12,7 +12,8 @@ type SystemPromptParams = {
    * Set by the caller when it knows (via a content hash from the CLI, which
    * has real filesystem access) that AGENTS.md differs from what the agent
    * last read in this session. Ignored when `agentsMdContent` is supplied
-   * directly, since that already carries the current content.
+   * directly, since that already carries the current content and can be
+   * injected into the system prompt without an extra tool call.
    */
   agentsMdChanged?: boolean;
 };
@@ -49,14 +50,13 @@ export async function buildSystemPrompt({
   agentsMdChanged,
 }: SystemPromptParams): Promise<string> {
   const parts: string[] = [];
+  const trimmedGuidelines = agentsMdContent?.trim();
 
-  // Positioned first, ahead of the role section, when true. This isn't a
-  // passive reminder like the discovery directive below - it needs to
-  // override the model's default judgment about whether a tool call is
-  // warranted for a given turn, so it gets top billing instead of being a
-  // few sections down where weaker/faster models are more likely to skip
-  // it on turns that don't superficially look file-related.
-  if (agentsMdChanged) {
+  // Only emit the high-priority re-read notice when we do not already have
+  // the latest AGENTS.md content in hand. If the caller injected the current
+  // file contents directly, that is strictly better than asking the agent to
+  // spend a tool call re-reading the same file.
+  if (agentsMdChanged && !trimmedGuidelines) {
     parts.push(buildAgentsMdChangedNotice());
   }
 
@@ -66,13 +66,8 @@ export async function buildSystemPrompt({
   // Otherwise, since this server has no filesystem access to the user's
   // repo, tell the agent to fetch it itself with its own readFile/glob
   // tools - the same way it reads any other project file.
-  const trimmedGuidelines = agentsMdContent?.trim();
   if (trimmedGuidelines) {
-    parts.push(
-`<project_guidelines>
-${trimmedGuidelines}
-</project_guidelines>`
-    );
+    parts.push(`<project_guidelines>\n${trimmedGuidelines}\n</project_guidelines>`);
   } else {
     parts.push(buildAgentsMdDiscoveryDirective());
   }
