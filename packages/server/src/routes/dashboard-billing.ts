@@ -12,12 +12,13 @@ const app = new Hono<InternalWebAuthEnv>()
     
     // Hardcode the redirect directly to the frontend dashboard.
     // Ensure this matches your production Next.js URL.
-    const successUrl = "https://gbam.dev/dashboard";
+    const frontendUrl = process.env.WEB_URL || "https://gbam.dev";
+    const successUrl = `${frontendUrl}/dashboard`;
 
     return c.json({
       url: await createCheckoutUrl({
         customerExternalId: userId,
-        requestUrl: successUrl, // Polar will send the browser directly here
+        requestUrl: successUrl, 
       }),
     });
   });

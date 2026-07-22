@@ -34,10 +34,11 @@ const app = new Hono<AuthenticatedEnv>()
     // 2. PROTECTED routes for the CLI API
     .post("/checkout", async (c) => {
         const userId = c.get("userId");
-        const urlObj = new URL(c.req.url);
         
-        // Point Polar back to the public /success route defined above
-        const successUrl = `${urlObj.protocol}//${urlObj.host}/billing/success`;
+        // Use an environment variable, falling back to your production API URL.
+        // Make sure this matches the exact domain your Hono server runs on.
+        const apiUrl = process.env.API_URL || "https://api.gbam.dev";
+        const successUrl = `${apiUrl}/billing/success`;
 
         return c.json({
             url: await createCheckoutUrl({ 
