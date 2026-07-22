@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/cli-auth(.*)",
   "/auth/callback(.*)",
   "/api/cli-auth/continue(.*)",
+  
 ]);
 
 const clerkHandler = clerkMiddleware(async (auth, request) => {

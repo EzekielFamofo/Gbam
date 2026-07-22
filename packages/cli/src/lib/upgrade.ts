@@ -3,9 +3,8 @@ import { apiClient } from "./api-client";
 import { getErrorMessage } from "./htttp-errors";
 
 export async function openUpgradeCheckout() {
-    const response = await apiClient.billing.checkout.$get({
-        query: { source: "cli" },
-    });
+    // Corrected to $post() with no query arguments needed
+    const response = await apiClient.billing.checkout.$post();
 
     if (response.ok) {
         const data = await response.json();
@@ -17,9 +16,8 @@ export async function openUpgradeCheckout() {
 };
 
 export async function openBillingPortal() {
-    const response = await apiClient.billing.portal.$get({
-        query: { source: "cli" },
-    });
+    // Corrected to $post()
+    const response = await apiClient.billing.portal.$post();
 
     if (response.ok) {
         const data = await response.json();
