@@ -20,7 +20,8 @@ export async function GET(request: Request) {
     return new NextResponse("GBAM internal dashboard secret is not configured", { status: 500 });
   }
 
-  const response = await fetch(`${apiUrl}/dashboard-billing/checkout`, {
+  // Pass ?source=web so the backend knows to redirect back to the dashboard on success
+  const response = await fetch(`${apiUrl}/dashboard-billing/checkout?source=web`, {
     method: "GET",
     headers: {
       "x-gbam-internal-secret": internalSecret,

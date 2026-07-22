@@ -251,7 +251,7 @@ export async function executeLocalTool(
         }
         // ✅ ADDED: Web fetch tool execution handler
         // ✅ FIXED: Use toolInputSchemas.webfetch to parse the input safely without .url() validation constraints
-        case "webfetch": {
+case "webfetch": {
             const { url } = toolInputSchemas.webfetch.parse(input);
             try {
                 const response = await fetch(url, {
@@ -263,10 +263,19 @@ export async function executeLocalTool(
                 }
 
                 const html = await response.text();
+                
+                // 🛠️ Strip HTML tags and clean up whitespace for LLM consumption
+                const cleanContent = html
+                    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+                    .replace(/<[^>]+>/g, " ")
+                    .replace(/\s+/g, " ")
+                    .trim();
+
                 return {
                     url,
                     status: response.status,
-                    content: truncate(html, MAX_OUTPUT),
+                    content: truncate(cleanContent, MAX_OUTPUT),
                 };
             } catch (error) {
                 return { error: error instanceof Error ? error.message : String(error) };
