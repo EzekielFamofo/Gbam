@@ -164,6 +164,7 @@ const app = new Hono<AuthenticatedEnv>()
     requireSpendLimit,
     async (c) => {
       const userId = c.get("userId");
+      const executionId = crypto.randomUUID();
       const { id, messages, mode, model, agentsMdHash, agentsMdContent, projectPath } = c.req.valid("json");
 
       const session = await db.session.findUnique({
@@ -318,7 +319,7 @@ const app = new Hono<AuthenticatedEnv>()
               usage: completedUsage,
             });
 
-            const providerReference = `chat-message:${event.responseMessage.id}`;
+            const providerReference = `chat-message:${event.responseMessage.id}-${executionId}`;
 
             await IngestAiUsage({
               externalCustomerId: userId,
