@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import Link from "next/link";
 import { SignIn, UserButton } from "@clerk/nextjs";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { ArrowLeft, BarChart3, Gauge, Layers3, ListChecks, ShieldCheck, Activity } from "lucide-react";
+import { ArrowLeft, BarChart3, Gauge, Layers3, ListChecks, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -70,112 +70,117 @@ export async function DashboardShell({
     user?.emailAddresses?.[0]?.emailAddress ||
     "No primary email available";
 
-return (
-  <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
-    {/* 1. Sleek Compact Top Bar */}
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-1.5 font-display text-base font-semibold tracking-tight">
-            GBAM <span className="text-primary motion-safe:animate-pulse">_</span>
-          </Link>
-          <div className="hidden h-4 w-px bg-border sm:block" />
-          <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>CLI Linked: <strong className="text-foreground">{email}</strong></span>
-          </div>
-        </div>
+  const isOverview = currentPath === "/dashboard" || currentPath === "/dashboard/";
 
-        <div className="flex items-center gap-2.5">
-          <Link href="/docs">
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground">
-              Docs
-            </Button>
-          </Link>
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="size-3.5" /> Home
-            </Button>
-          </Link>
-          <div className="h-4 w-px bg-border mx-1" />
-          <UserButton />
-        </div>
-      </div>
-    </header>
-
-    <main className="mx-auto max-w-7xl px-6 py-6 md:py-8">
-      {/* 2. Compact Welcome Banner */}
-      <section className="rounded-xl border border-border/60 bg-card/60 p-5 shadow-xs">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-              <ShieldCheck className="size-3" />
-              CLI Synchronized
+  return (
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
+      {/* Sleek Compact Top Bar */}
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
+          <div className="flex items-center gap-6">
+            <Link href="/" className="flex items-center gap-1.5 font-display text-base font-semibold tracking-tight">
+              GBAM <span className="text-primary motion-safe:animate-pulse">_</span>
+            </Link>
+            <div className="hidden h-4 w-px bg-border sm:block" />
+            <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>CLI Linked: <strong className="text-foreground">{email}</strong></span>
             </div>
-            <h1 className="font-display text-2xl font-semibold tracking-tight">
-              Welcome back, {name}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Manage credits, view active CLI sessions, and monitor usage telemetry.
-            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <Link href="/api/dashboard/checkout">
-              <Button size="sm" className="h-8 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90">
-                Buy credits
+          <div className="flex items-center gap-2.5">
+            <Link href="/docs">
+              <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground">
+                Docs
               </Button>
             </Link>
-            <Link href="/get-started">
-              <Button variant="outline" size="sm" className="h-8 text-xs border-border/60">
-                Setup guide
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="size-3.5" /> Home
               </Button>
             </Link>
+            <div className="h-4 w-px bg-border mx-1" />
+            <UserButton />
           </div>
         </div>
-      </section>
+      </header>
 
-      {/* Sidebar + Main Grid */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="rounded-xl border border-border/60 bg-card/40 p-3 lg:sticky lg:top-20 lg:self-start">
-          <div className="mb-2 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-            Navigation
-          </div>
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentPath === item.href;
-              const classes = cn(
-                "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
-                isActive
-                  ? "bg-primary/15 text-primary border border-primary/20 font-semibold"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                item.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-muted-foreground"
-              );
+      {/* Main Layout with Fully Vertical Sidebar */}
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+          {/* Fully Vertical Sidebar */}
+          <aside className="space-y-4">
+            <div className="sticky top-20 rounded-xl border border-border/60 bg-card/40 p-3">
+              <div className="mb-2 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                Navigation
+              </div>
+              <nav className="space-y-1">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentPath === item.href;
+                  const classes = cn(
+                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                    isActive
+                      ? "bg-primary/15 text-primary border border-primary/20 font-semibold"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    item.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-muted-foreground"
+                  );
 
-              if (item.disabled) {
-                return (
-                  <div key={item.href} className={classes} aria-disabled="true">
-                    <Icon className="size-4" />
-                    <span>{item.label}</span>
-                    <span className="ml-auto text-[9px] uppercase tracking-wide opacity-70">Soon</span>
+                  if (item.disabled) {
+                    return (
+                      <div key={item.href} className={classes} aria-disabled="true">
+                        <Icon className="size-4" />
+                        <span>{item.label}</span>
+                        <span className="ml-auto text-[9px] uppercase tracking-wide opacity-70">Soon</span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link key={item.href} href={item.href} className={classes}>
+                      <Icon className="size-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </aside>
+
+          {/* Content Area */}
+          <main className="space-y-6">
+            {/* Welcome banner only on overview page, setup guide removed */}
+            {isOverview && (
+              <section className="rounded-xl border border-border/60 bg-card/60 p-5 shadow-xs">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                      <ShieldCheck className="size-3" />
+                      CLI Synchronized
+                    </div>
+                    <h1 className="font-display text-2xl font-semibold tracking-tight">
+                      Welcome back, {name}
+                    </h1>
+                    <p className="text-xs text-muted-foreground">
+                      Manage credits, view active CLI sessions, and monitor usage telemetry.
+                    </p>
                   </div>
-                );
-              }
 
-              return (
-                <Link key={item.href} href={item.href} className={classes}>
-                  <Icon className="size-4" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
+                  <div className="flex items-center gap-2.5">
+                    <Link href="/api/dashboard/checkout">
+                      <Button size="sm" className="h-8 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90">
+                        Buy credits
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </section>
+            )}
 
-        <div>{children}</div>
+            {children}
+          </main>
+        </div>
       </div>
-    </main>
-  </div>
-);
+    </div>
+  );
 }

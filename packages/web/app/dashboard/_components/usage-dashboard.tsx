@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { DashboardTransactionItem, DashboardSessionItem } from "@gbam/shared";
 import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
-import { Search, Filter, Cpu, Calendar } from "lucide-react";
+import { Search, Filter, Cpu, Calendar, Check } from "lucide-react";
 import { EmptyState } from "./empty-state";
 
 const rangeOptions = [
@@ -25,11 +25,11 @@ function getTransactionTitle(transaction: DashboardTransactionItem) {
 }
 
 const MODEL_COLORS = [
-  "stroke-primary text-primary bg-primary",
-  "stroke-emerald-400 text-emerald-400 bg-emerald-400",
-  "stroke-sky-400 text-sky-400 bg-sky-400",
-  "stroke-amber-400 text-amber-400 bg-amber-400",
-  "stroke-violet-400 text-violet-400 bg-violet-400",
+  { stroke: "stroke-primary", bg: "bg-primary", text: "text-primary" },
+  { stroke: "stroke-emerald-400", bg: "bg-emerald-400", text: "text-emerald-400" },
+  { stroke: "stroke-sky-400", bg: "bg-sky-400", text: "text-sky-400" },
+  { stroke: "stroke-amber-400", bg: "bg-amber-400", text: "text-amber-400" },
+  { stroke: "stroke-violet-400", bg: "bg-violet-400", text: "text-violet-400" },
 ];
 
 type Props = {
@@ -37,17 +37,18 @@ type Props = {
   sessions?: DashboardSessionItem[];
 };
 
-export function UsageDashboard({ transactions, sessions = [] }: { transactions: DashboardTransactionItem[]; sessions?: DashboardSessionItem[] }) {
+export function UsageDashboard({ transactions, sessions = [] }: Props) {
   const [range, setRange] = useState<RangeValue>("30d");
   const [selectedSessionId, setSelectedSessionId] = useState<string>("all");
   const [query, setQuery] = useState("");
+  const [activeModels, setActiveModels] = useState<string[]>([]);
 
-  // Map session IDs to their models and titles for lookup
+  // Map session IDs to their session objects for quick lookup
   const sessionMap = useMemo(() => {
     return new Map(sessions.map((s) => [s.id, s]));
   }, [sessions]);
 
-  // Extract unique sessions available in transactions for the dropdown filter
+  // Extract unique sessions for dropdown filter (displaying titles)
   const availableSessions = useMemo(() => {
     const sessionIds = Array.from(new Set(transactions.map((t) => t.sessionId).filter(Boolean))) as string[];
     return sessionIds.map((id) => {
@@ -59,22 +60,19 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
     });
   }, [transactions, sessionMap]);
 
-  // 1. Filtered Transactions for Bar Chart & History Table (Filtered by Time + Session + Search)
+  // 1. Filtered Transactions for Bar Chart & History Table
   const { filteredTransactions, totalUsage, dailySeries, breakdown, maxDailyValue } = useMemo(() => {
     const cutoff = getCutoffDate(range);
     const normalizedQuery = query.trim().toLowerCase();
 
-    // Time range filter
     const filteredByRange = transactions.filter((transaction) => {
       return new Date(transaction.createdAt).getTime() >= cutoff;
     });
 
-    // Session filter
     const filteredBySession = selectedSessionId === "all"
       ? filteredByRange
       : filteredByRange.filter((t) => t.sessionId === selectedSessionId);
 
-    // Search query filter
     const filteredTransactions = normalizedQuery
       ? filteredBySession.filter((transaction) => {
           return [
@@ -86,11 +84,9 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
         })
       : filteredBySession;
 
-    // Total usage calculation
     const usageTransactions = filteredTransactions.filter((transaction) => transaction.creditsDelta < 0);
     const totalUsage = usageTransactions.reduce((sum, transaction) => sum + Math.abs(transaction.creditsDelta), 0);
 
-    // Group usage by date key for bar chart
     const usageByDate = new Map<string, number>();
     for (const transaction of usageTransactions) {
       const dateKey = new Date(transaction.createdAt).toISOString().split("T")[0];
@@ -113,7 +109,6 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
 
     const maxDailyValue = Math.max(...dailySeries.map((item) => item.value), 0);
 
-    // Breakdown by type
     const typeMap = new Map<string, number>();
     for (const transaction of filteredTransactions) {
       typeMap.set(transaction.type, (typeMap.get(transaction.type) ?? 0) + Math.abs(transaction.creditsDelta));
@@ -132,12 +127,11 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
     };
   }, [query, range, selectedSessionId, transactions]);
 
-  // 2. Stable 2-Week (14 Days) Model Line Chart Data (Independent of time range filter)
+  // 2. Stable 2-Week (14 Days) Model Line Chart Data with Model Filtering
   const modelChartData = useMemo(() => {
     const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
     const recentTx = transactions.filter((t) => new Date(t.createdAt).getTime() >= fourteenDaysAgo && t.creditsDelta < 0);
 
-    // Generate 14-day date keys
     const dates: string[] = [];
     const now = new Date();
     for (let i = 13; i >= 0; i--) {
@@ -146,7 +140,6 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
       dates.push(d.toISOString().split("T")[0]);
     }
 
-    // Collect usage per model per day
     const modelDailyMap = new Map<string, Map<string, number>>();
     const modelTotals = new Map<string, number>();
 
@@ -163,35 +156,55 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
       dayMap.set(dateKey, (dayMap.get(dateKey) ?? 0) + Math.abs(t.creditsDelta));
     }
 
-    // Sort models by highest usage
-    const topModels = Array.from(modelTotals.entries())
+    const availableModels = Array.from(modelTotals.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([model]) => model);
 
-    const series = topModels.map((model, modelIdx) => {
-      const dayMap = modelDailyMap.get(model)!;
-      const points = dates.map((dateStr) => dayMap.get(dateStr) ?? 0);
+    return {
+      availableModels,
+      modelDailyMap,
+      dates,
+      dateLabels: dates.map((dStr) => new Date(dStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })),
+    };
+  }, [transactions, sessionMap]);
+
+  // Initialize active models if empty
+  const currentActiveModels = activeModels.length > 0 
+    ? activeModels.filter(m => modelChartData.availableModels.includes(m))
+    : modelChartData.availableModels;
+
+  const filteredModelSeries = useMemo(() => {
+    const modelsToRender = currentActiveModels.length > 0 ? currentActiveModels : modelChartData.availableModels;
+    
+    let globalMax = 1;
+    const series = modelsToRender.map((model, idx) => {
+      const dayMap = modelDailyMapGet(model, modelChartData.modelDailyMap);
+      const points = modelChartData.dates.map((dateStr) => dayMap.get(dateStr) ?? 0);
+      const localMax = Math.max(...points, 0);
+      if (localMax > globalMax) globalMax = localMax;
+
       return {
         model,
         points,
-        colorClass: MODEL_COLORS[modelIdx % MODEL_COLORS.length],
+        color: MODEL_COLORS[idx % MODEL_COLORS.length]!,
       };
     });
 
-    const dateLabels = dates.map((dStr) => {
-      const d = new Date(dStr);
-      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    });
+    return { series, maxValue: globalMax };
+  }, [currentActiveModels, modelChartData]);
 
-    const allValues = series.flatMap((s) => s.points);
-    const maxValue = Math.max(...allValues, 1);
+  function modelDailyMapGet(model: string, map: Map<string, Map<string, number>>) {
+    return map.get(model) || new Map<string, number>();
+  }
 
-    return {
-      series,
-      dateLabels,
-      maxValue,
-    };
-  }, [transactions, sessionMap]);
+  const toggleModelFilter = (model: string) => {
+    if (activeModels.includes(model)) {
+      if (activeModels.length === 1) return; // Keep at least one selected
+      setActiveModels(activeModels.filter((m) => m !== model));
+    } else {
+      setActiveModels([...activeModels, model]);
+    }
+  };
 
   const labelInterval = range === "7d" ? 1 : range === "30d" ? 5 : 15;
 
@@ -203,19 +216,18 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
           <div>
             <h3 className="font-display text-base font-semibold">Usage overview</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Track credit consumption over time, filtered by date range and session.
+              Track credit consumption over time, filtered by date range and session title.
             </p>
           </div>
 
-          {/* Controls: Session Filter & Time Range Selector */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Session Dropdown Filter */}
+            {/* Session Dropdown Filter (Filtered by Title) */}
             <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background/60 px-2.5 py-1">
               <Filter className="size-3.5 text-muted-foreground" />
               <select
                 value={selectedSessionId}
                 onChange={(e) => setSelectedSessionId(e.target.value)}
-                className="bg-transparent text-xs font-medium text-foreground outline-none cursor-pointer"
+                className="bg-transparent text-xs font-medium text-foreground outline-none cursor-pointer max-w-[200px] truncate"
               >
                 <option value="all" className="bg-background text-foreground">All sessions</option>
                 {availableSessions.map((s) => (
@@ -247,8 +259,8 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-          {/* Vertical Bar Chart Box */}
-          <div className="rounded-lg border border-border/50 bg-background/50 p-4">
+          {/* Vertical Bar Chart Box with Horizontal Overflow Protection */}
+          <div className="rounded-lg border border-border/50 bg-background/50 p-4 overflow-hidden">
             <div className="flex items-baseline justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Credits used in range</p>
@@ -269,46 +281,48 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
                   No usage recorded for this filter criteria.
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="relative flex h-40 items-end gap-1 pt-4 border-b border-border/60">
-                    <div className="pointer-events-none absolute inset-x-0 top-0 border-b border-dashed border-border/20" />
-                    <div className="pointer-events-none absolute inset-x-0 top-1/2 border-b border-dashed border-border/20" />
+                <div className="overflow-x-auto pb-2">
+                  <div className="min-w-[580px] space-y-2">
+                    <div className="relative flex h-40 items-end gap-1 pt-4 border-b border-border/60">
+                      <div className="pointer-events-none absolute inset-x-0 top-0 border-b border-dashed border-border/20" />
+                      <div className="pointer-events-none absolute inset-x-0 top-1/2 border-b border-dashed border-border/20" />
 
-                    {dailySeries.map((item) => {
-                      const heightPercent = maxDailyValue > 0 ? (item.value / maxDailyValue) * 100 : 0;
-                      return (
-                        <div
-                          key={item.dateStr}
-                          className="group relative flex flex-1 flex-col items-center h-full justify-end"
-                        >
-                          <div className="pointer-events-none absolute -top-9 z-20 hidden rounded-md border border-border/80 bg-popover px-2 py-1 text-[10px] font-mono text-popover-foreground shadow-md group-hover:flex whitespace-nowrap">
-                            <span>{item.fullDate}: </span>
-                            <span className="ml-1 font-bold text-primary">{formatCredits(item.value)}</span>
-                          </div>
+                      {dailySeries.map((item) => {
+                        const heightPercent = maxDailyValue > 0 ? (item.value / maxDailyValue) * 100 : 0;
+                        return (
                           <div
-                            className={`w-full rounded-t-xs transition-all duration-200 ${
-                              item.value > 0
-                                ? "bg-primary group-hover:bg-primary/80"
-                                : "bg-muted/30 group-hover:bg-muted/60"
-                            }`}
-                            style={{
-                              height: item.value > 0 ? `${Math.max(heightPercent, 4)}%` : "2px",
-                            }}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
+                            key={item.dateStr}
+                            className="group relative flex flex-1 flex-col items-center h-full justify-end"
+                          >
+                            <div className="pointer-events-none absolute -top-9 z-20 hidden rounded-md border border-border/80 bg-popover px-2 py-1 text-[10px] font-mono text-popover-foreground shadow-md group-hover:flex whitespace-nowrap">
+                              <span>{item.fullDate}: </span>
+                              <span className="ml-1 font-bold text-primary">{formatCredits(item.value)}</span>
+                            </div>
+                            <div
+                              className={`w-full rounded-t-xs transition-all duration-200 ${
+                                item.value > 0
+                                  ? "bg-primary group-hover:bg-primary/80"
+                                  : "bg-muted/30 group-hover:bg-muted/60"
+                              }`}
+                              style={{
+                                height: item.value > 0 ? `${Math.max(heightPercent, 4)}%` : "2px",
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                  <div className="flex justify-between text-[10px] font-mono text-muted-foreground px-0.5">
-                    {dailySeries.map((item, index) => {
-                      const showLabel = index % labelInterval === 0 || index === dailySeries.length - 1;
-                      return (
-                        <span key={item.dateStr} className={`text-center flex-1 ${showLabel ? "block" : "invisible"}`}>
-                          {item.label}
-                        </span>
-                      );
-                    })}
+                    <div className="flex justify-between text-[10px] font-mono text-muted-foreground px-0.5">
+                      {dailySeries.map((item, index) => {
+                        const showLabel = index % labelInterval === 0 || index === dailySeries.length - 1;
+                        return (
+                          <span key={item.dateStr} className={`text-center flex-1 ${showLabel ? "block" : "invisible"}`}>
+                            {item.label}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -337,57 +351,71 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
         </div>
       </section>
 
-      {/* Dynamic Line Chart Section: Credits Used Per Model (Stable 2 Weeks) */}
+      {/* Dynamic Filterable Line Chart Section: Credits Used Per Model */}
       <section className="rounded-xl border border-border/60 bg-card/40 p-5">
-        <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="font-display text-base font-semibold flex items-center gap-2">
               <Cpu className="size-4 text-primary" /> Credits used per model
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Stable 14-day telemetry showing model usage trends across all sessions.
+              Stable 14-day telemetry. Toggle model filters below to compare multiple models at once.
             </p>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono bg-background/60 border border-border/60 rounded-md px-2.5 py-1 w-fit">
-            <Calendar className="size-3 text-primary" /> Last 14 days
+
+          {/* Model Filter Toggles */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {modelChartData.availableModels.map((model) => {
+              const isSelected = currentActiveModels.includes(model);
+              return (
+                <button
+                  key={model}
+                  type="button"
+                  onClick={() => toggleModelFilter(model)}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-mono font-medium transition-all border ${
+                    isSelected
+                      ? "border-primary/50 bg-primary/10 text-primary shadow-xs"
+                      : "border-border/60 bg-background/50 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {isSelected && <Check className="size-3" />}
+                  {model}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div className="mt-5 rounded-lg border border-border/50 bg-background/50 p-4">
-          {modelChartData.series.length === 0 ? (
+          {filteredModelSeries.series.length === 0 ? (
             <div className="flex h-48 items-center justify-center text-xs text-muted-foreground">
-              No model usage recorded in the last 14 days.
+              Select at least one model to display usage trends.
             </div>
           ) : (
             <div className="space-y-4">
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-4 text-xs">
-                {modelChartData.series.map((s) => {
-                  const colorClassParts = s.colorClass.split(" ");
-                  const bgBadge = colorClassParts[2] || "bg-primary";
-                  return (
-                    <div key={s.model} className="flex items-center gap-1.5">
-                      <span className={`size-2.5 rounded-full ${bgBadge}`} />
-                      <span className="font-mono font-medium text-foreground">{s.model}</span>
-                    </div>
-                  );
-                })}
+                {filteredModelSeries.series.map((s) => (
+                  <div key={s.model} className="flex items-center gap-1.5">
+                    <span className={`size-2.5 rounded-full ${s.color.bg}`} />
+                    <span className="font-mono font-medium text-foreground">{s.model}</span>
+                  </div>
+                ))}
               </div>
 
-              {/* SVG Multi-Line Chart Canvas */}
+              {/* SVG Multi-Line Chart Canvas with Thinner Lines */}
               <div className="relative h-48 w-full pt-4">
                 <div className="pointer-events-none absolute inset-x-0 top-0 border-b border-dashed border-border/20" />
                 <div className="pointer-events-none absolute inset-x-0 top-1/2 border-b border-dashed border-border/20" />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-border/60" />
 
                 <svg className="absolute inset-0 h-full w-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-                  {modelChartData.series.map((s) => {
-                    const strokeColorClass = s.colorClass.split(" ")[0] || "stroke-primary";
+                  {filteredModelSeries.series.map((s) => {
                     const pointsCount = s.points.length;
                     const pathCoords = s.points
                       .map((val, idx) => {
                         const x = (idx / (pointsCount - 1 || 1)) * 100;
-                        const y = 100 - (val / modelChartData.maxValue) * 85 - 5;
+                        const y = 100 - (val / filteredModelSeries.maxValue) * 85 - 5;
                         return `${x},${y}`;
                       })
                       .join(" ");
@@ -396,8 +424,8 @@ export function UsageDashboard({ transactions, sessions = [] }: { transactions: 
                       <polyline
                         key={s.model}
                         fill="none"
-                        className={`${strokeColorClass} transition-all duration-300`}
-                        strokeWidth="2.5"
+                        className={`${s.color.stroke} transition-all duration-300`}
+                        strokeWidth="1.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         points={pathCoords}

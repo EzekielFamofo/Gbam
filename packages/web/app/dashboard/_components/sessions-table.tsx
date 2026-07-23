@@ -52,19 +52,19 @@ export function SessionsTable({
   }, [query, sessions]);
 
   return (
-    <section className="rounded-3xl border border-border bg-card p-6">
+    <section className="rounded-xl border border-border/60 bg-card/40 p-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="font-display text-xl font-semibold">All sessions</h3>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Search and manage every CLI session linked to this account.
+          <h3 className="font-display text-base font-semibold">All sessions</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Search and manage every CLI session linked to this account by title, mode, model, or status.
           </p>
         </div>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search sessions"
-          className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none ring-0 transition focus:border-primary md:max-w-xs"
+          placeholder="Search sessions by title..."
+          className="h-9 w-full rounded-md border border-border/60 bg-background/60 px-3 text-xs outline-none ring-0 transition focus:border-primary md:max-w-xs"
         />
       </div>
 
@@ -80,57 +80,63 @@ export function SessionsTable({
           />
         </div>
       ) : (
-        <div className="mt-5 overflow-x-auto">
-          <table className="min-w-full divide-y divide-border text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="pb-3 pr-4 font-medium">Session</th>
-                <th className="pb-3 pr-4 font-medium">Mode</th>
-                <th className="pb-3 pr-4 font-medium">Last activity</th>
-                <th className="pb-3 pr-4 font-medium">Credits used</th>
-                <th className="pb-3 pr-4 font-medium">Model</th>
-                <th className="pb-3 pr-4 font-medium">Status</th>
-                <th className="pb-3 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredSessions.map((session) => (
-                <tr key={session.id} className="align-top">
-                  <td className="py-4 pr-4">
-                    <div>
-                      <p className="font-display font-semibold text-foreground" title={session.title}>
-                        {session.title}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">{session.id}</p>
-                    </div>
-                  </td>
-                  <td className="py-4 pr-4">
-                    {session.lastMode ? (
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${getModeClasses(session.lastMode)}`}>
-                        {session.lastMode}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="py-4 pr-4 text-muted-foreground">{formatDateTime(session.lastActivityAt)}</td>
-                  <td className="py-4 pr-4 font-medium text-foreground">{formatCredits(session.creditsUsed)}</td>
-                  <td className="py-4 pr-4 text-muted-foreground">{session.lastModel ?? "—"}</td>
-                  <td className="py-4 pr-4">
-                    <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-foreground">
-                      {formatStatus(session.status)}
-                    </span>
-                  </td>
-                  <td className="py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <RenameSessionButton sessionId={session.id} sessionTitle={session.title} onUpdated={onUpdated} />
-                      <DeleteSessionButton sessionId={session.id} sessionTitle={session.title} onDeleted={onUpdated} />
-                    </div>
-                  </td>
+        <div className="mt-5 overflow-hidden rounded-lg border border-border/50 bg-background/50">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-border/40 text-xs">
+              <thead>
+                <tr className="bg-muted/20 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <th className="py-3 pl-5 pr-4">Session</th>
+                  <th className="py-3 px-4">Mode</th>
+                  <th className="py-3 px-4">Last activity</th>
+                  <th className="py-3 px-4">Credits used</th>
+                  <th className="py-3 px-4">Model</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 pl-4 pr-5 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {filteredSessions.map((session) => (
+                  <tr key={session.id} className="align-middle hover:bg-muted/20 transition-colors">
+                    <td className="py-3.5 pl-5 pr-4">
+                      <div>
+                        <p className="font-semibold text-foreground" title={session.title}>
+                          {session.title}
+                        </p>
+                        <p className="font-mono text-[10px] text-muted-foreground">{session.id}</p>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {session.lastMode ? (
+                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-mono font-medium uppercase ${getModeClasses(session.lastMode)}`}>
+                          {session.lastMode}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-muted-foreground whitespace-nowrap">
+                      {formatDateTime(session.lastActivityAt)}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-foreground">
+                      {formatCredits(session.creditsUsed)}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-muted-foreground">{session.lastModel ?? "—"}</td>
+                    <td className="py-3.5 px-4">
+                      <span className="inline-flex rounded-md border border-border/60 bg-muted/60 px-2 py-0.5 text-[10px] font-mono uppercase font-medium text-muted-foreground">
+                        {formatStatus(session.status)}
+                      </span>
+                    </td>
+                    <td className="py-3.5 pl-4 pr-5 text-right">
+                      <div className="flex justify-end gap-2">
+                        <RenameSessionButton sessionId={session.id} sessionTitle={session.title} onUpdated={onUpdated} />
+                        <DeleteSessionButton sessionId={session.id} sessionTitle={session.title} onDeleted={onUpdated} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </section>
