@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
 type SpendLimitsFormProps = {
     initialData: {
@@ -19,6 +20,14 @@ export function SpendLimitsForm({ initialData }: SpendLimitsFormProps) {
     const [saved, setSaved] = useState(false);
     const [isPending, startTransition] = useTransition();
 
+    // Auto-dismiss the success message after 3 seconds
+    useEffect(() => {
+        if (saved) {
+            const timer = setTimeout(() => setSaved(false), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [saved]);
+
     function handleSave() {
         setError(null);
         setSaved(false);
@@ -27,39 +36,38 @@ export function SpendLimitsForm({ initialData }: SpendLimitsFormProps) {
         const monthlyValue = monthly.trim() === "" ? null : Number(monthly);
 
         if (dailyValue != null && monthlyValue != null && dailyValue > monthlyValue) {
-            setError("Daily limit can't exceed the monthly limit");
+            setError("Daily limit can't exceed the monthly limit.");
             return;
         }
 
         startTransition(async () => {
-            const res = await fetch("/api/dashboard/limits", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    dailySpendLimit: dailyValue,
-                    monthlySpendLimit: monthlyValue,
-                }),
-            });
+            try {
+                const res = await fetch("/api/dashboard/limits", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        dailySpendLimit: dailyValue,
+                        monthlySpendLimit: monthlyValue,
+                    }),
+                });
 
-            if (!res.ok) {
-                setError("Failed to save spend limits");
-                return;
+                if (!res.ok) {
+                    setError("Failed to save spend limits.");
+                    return;
+                }
+
+                setSaved(true);
+            } catch {
+                setError("An unexpected error occurred.");
             }
-
-            setSaved(true);
         });
     }
 
     return (
-        <section className="rounded-3xl border border-border bg-card p-6">
-            <h2 className="font-display text-xl font-semibold">Spending limits</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-                Cap how many credits your sessions can use per day or per month. Leave a field blank for no limit.
-            </p>
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <label className="space-y-1.5 text-sm">
-                    <span className="font-medium">Daily limit (credits)</span>
+        <div className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-1.5 text-xs">
+                    <span className="font-medium text-foreground">Daily limit (credits)</span>
                     <input
                         type="number"
                         min={0}
@@ -67,16 +75,16 @@ export function SpendLimitsForm({ initialData }: SpendLimitsFormProps) {
                         value={daily}
                         onChange={(e) => setDaily(e.target.value)}
                         placeholder="No limit"
-                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-border/60 bg-background/60 px-3 py-2 text-xs text-foreground outline-none ring-0 transition focus:border-primary"
                     />
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="block text-[11px] text-muted-foreground">
                         {initialData.dailySpent} used today
                         {initialData.dailySpendLimit != null ? ` of ${initialData.dailySpendLimit}` : ""}
                     </span>
                 </label>
 
-                <label className="space-y-1.5 text-sm">
-                    <span className="font-medium">Monthly limit (credits)</span>
+                <label className="space-y-1.5 text-xs">
+                    <span className="font-medium text-foreground">Monthly limit (credits)</span>
                     <input
                         type="number"
                         min={0}
@@ -84,21 +92,40 @@ export function SpendLimitsForm({ initialData }: SpendLimitsFormProps) {
                         value={monthly}
                         onChange={(e) => setMonthly(e.target.value)}
                         placeholder="No limit"
-                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-border/60 bg-background/60 px-3 py-2 text-xs text-foreground outline-none ring-0 transition focus:border-primary"
                     />
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="block text-[11px] text-muted-foreground">
                         {initialData.monthlySpent} used this month
                         {initialData.monthlySpendLimit != null ? ` of ${initialData.monthlySpendLimit}` : ""}
                     </span>
                 </label>
             </div>
 
-            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-            {saved && !error && <p className="mt-3 text-sm text-primary">Saved.</p>}
+            {error && (
+                <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive animate-in fade-in duration-200">
+                    <AlertCircle className="size-4 shrink-0" />
+                    <span>{error}</span>
+                </div>
+            )}
 
-            <Button className="mt-4" onClick={handleSave} disabled={isPending}>
-                {isPending ? "Saving..." : "Save limits"}
-            </Button>
-        </section>
+            {saved && (
+                <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400 animate-in fade-in duration-200">
+                    <CheckCircle2 className="size-4 shrink-0" />
+                    <span>Spend limits updated successfully.</span>
+                </div>
+            )}
+
+            <div className="flex items-center justify-end pt-2">
+                <Button 
+                    size="sm" 
+                    onClick={handleSave} 
+                    disabled={isPending}
+                    className="cursor-pointer"
+                >
+                    {isPending && <Loader2 className="mr-2 size-3.5 animate-spin" />}
+                    {isPending ? "Saving..." : "Save limits"}
+                </Button>
+            </div>
+        </div>
     );
 }

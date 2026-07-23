@@ -17,7 +17,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: Gauge },
   { href: "/dashboard/sessions", label: "Sessions", icon: ListChecks },
   { href: "/dashboard/usage", label: "Usage", icon: BarChart3 },
-  { href: "/dashboard/limits", label: "Limits", icon: Layers3, disabled: true },
+  { href: "/dashboard/limits", label: "Limits", icon: Layers3,},
 ];
 
 export async function DashboardShell({
