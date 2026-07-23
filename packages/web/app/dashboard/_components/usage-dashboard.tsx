@@ -3,20 +3,19 @@
 import { useMemo, useState } from "react";
 import type { DashboardTransactionItem, DashboardSessionItem } from "@gbam/shared";
 import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
-import { Search, Filter, Cpu, Calendar, Check } from "lucide-react";
+import { Search, Filter, Cpu, Check } from "lucide-react";
 import { EmptyState } from "./empty-state";
 
 const rangeOptions = [
   { label: "7 days", value: "7d" },
   { label: "30 days", value: "30d" },
-  { label: "90 days", value: "90d" },
 ] as const;
 
 type RangeValue = (typeof rangeOptions)[number]["value"];
 
 function getCutoffDate(range: RangeValue) {
   const now = Date.now();
-  const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
+  const days = range === "7d" ? 7 : 30;
   return now - days * 24 * 60 * 60 * 1000;
 }
 
@@ -93,7 +92,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
       usageByDate.set(dateKey, (usageByDate.get(dateKey) ?? 0) + Math.abs(transaction.creditsDelta));
     }
 
-    const daysCount = range === "7d" ? 7 : range === "30d" ? 30 : 90;
+    const daysCount = range === "7d" ? 7 : 30;
     const dailySeries: { dateStr: string; label: string; fullDate: string; value: number }[] = [];
     const now = new Date();
 
@@ -206,7 +205,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
     }
   };
 
-  const labelInterval = range === "7d" ? 1 : range === "30d" ? 5 : 15;
+  const labelInterval = range === "7d" ? 1 : 5;
 
   return (
     <div className="space-y-6">
@@ -259,8 +258,8 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-          {/* Vertical Bar Chart Box with Horizontal Overflow Protection */}
-          <div className="rounded-lg border border-border/50 bg-background/50 p-4 overflow-hidden">
+          {/* Vertical Bar Chart Box with Visible Overflow for Tooltips */}
+          <div className="rounded-lg border border-border/50 bg-background/50 p-4 overflow-visible">
             <div className="flex items-baseline justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Credits used in range</p>
@@ -283,8 +282,8 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
               ) : (
                 <div className="overflow-x-auto pb-2">
                   <div className="min-w-[580px] space-y-2">
-                    <div className="relative flex h-40 items-end gap-1 pt-4 border-b border-border/60">
-                      <div className="pointer-events-none absolute inset-x-0 top-0 border-b border-dashed border-border/20" />
+                    <div className="relative flex h-40 items-end gap-2 pt-10 border-b border-border/60">
+                      <div className="pointer-events-none absolute inset-x-0 top-8 border-b border-dashed border-border/20" />
                       <div className="pointer-events-none absolute inset-x-0 top-1/2 border-b border-dashed border-border/20" />
 
                       {dailySeries.map((item) => {
@@ -292,11 +291,11 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                         return (
                           <div
                             key={item.dateStr}
-                            className="group relative flex flex-1 flex-col items-center h-full justify-end"
+                            className="group relative flex flex-1 flex-col items-center h-full justify-end cursor-pointer"
                           >
-                            <div className="pointer-events-none absolute -top-9 z-20 hidden rounded-md border border-border/80 bg-popover px-2 py-1 text-[10px] font-mono text-popover-foreground shadow-md group-hover:flex whitespace-nowrap">
-                              <span>{item.fullDate}: </span>
-                              <span className="ml-1 font-bold text-primary">{formatCredits(item.value)}</span>
+                            <div className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 z-30 hidden rounded-md border border-border/80 bg-popover px-2.5 py-1 text-[11px] font-mono text-popover-foreground shadow-xl group-hover:flex whitespace-nowrap items-center gap-1.5">
+                              <span className="text-muted-foreground">{item.fullDate}:</span>
+                              <span className="font-bold text-primary">{formatCredits(item.value)} credits</span>
                             </div>
                             <div
                               className={`w-full rounded-t-xs transition-all duration-200 ${
