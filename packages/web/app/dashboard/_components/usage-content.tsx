@@ -1,0 +1,19 @@
+"use client";
+
+import { useDashboard } from "../_components/dashboard-data-view";
+import { DashboardPageHeader } from "../_components/dashboard-shell";
+import { UsageDashboard } from "../_components/usage-dashboard";
+
+export function DashboardUsageContent() {
+  const { dashboard } = useDashboard();
+
+  return (
+    <div className="space-y-6">
+      <DashboardPageHeader
+        title="Usage"
+        description="Review recent credit consumption, transaction activity, and lightweight usage trends."
+      />
+      <UsageDashboard transactions={dashboard.transactions} />
+    </div>
+  );
+}

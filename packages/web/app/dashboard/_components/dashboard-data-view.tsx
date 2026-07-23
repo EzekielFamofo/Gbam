@@ -1,12 +1,19 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useRef, useState } from "react";
 import type { DashboardResponse } from "@gbam/shared";
+
+type DashboardContextType = {
+  dashboard: DashboardResponse;
+  refreshDashboard: () => Promise<void>;
+};
+
+const DashboardContext = createContext<DashboardContextType | null>(null);
 
 type Props = {
   initialData: DashboardResponse;
-  children: (props: { dashboard: DashboardResponse; refreshDashboard: () => Promise<void> }) => ReactNode;
+  children: ReactNode;
 };
 
 async function fetchDashboard(): Promise<DashboardResponse> {
@@ -20,12 +27,11 @@ async function fetchDashboard(): Promise<DashboardResponse> {
 
 export function DashboardDataView({ initialData, children }: Props) {
   const [dashboard, setDashboard] = useState(initialData);
-  const initialSignature = useMemo(() => JSON.stringify(initialData), [initialData]);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
     setDashboard(initialData);
-  }, [initialSignature, initialData]);
+  }, [initialData]);
 
   const refreshDashboard = useCallback(async () => {
     try {
@@ -59,5 +65,17 @@ export function DashboardDataView({ initialData, children }: Props) {
     };
   }, [refreshDashboard]);
 
-  return <>{children({ dashboard, refreshDashboard })}</>;
+  return (
+    <DashboardContext.Provider value={{ dashboard, refreshDashboard }}>
+      {children}
+    </DashboardContext.Provider>
+  );
+}
+
+export function useDashboard() {
+  const context = useContext(DashboardContext);
+  if (!context) {
+    throw new Error("useDashboard must be used within a DashboardDataView");
+  }
+  return context;
 }

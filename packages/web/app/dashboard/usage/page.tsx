@@ -1,8 +1,8 @@
-import { DashboardDataView } from "../_components/dashboard-data-view";
-import { DashboardPageHeader, DashboardShell, DashboardUnavailable } from "../_components/dashboard-shell";
-import { UsageDashboard } from "../_components/usage-dashboard";
-import { getDashboardData } from "@/lib/dashboard/get-dashboard";
 import { auth } from "@clerk/nextjs/server";
+import { DashboardDataView } from "../_components/dashboard-data-view";
+import { DashboardShell, DashboardUnavailable } from "../_components/dashboard-shell";
+import { getDashboardData } from "@/lib/dashboard/get-dashboard";
+import { DashboardUsageContent } from "../_components/usage-content";
 
 export default async function DashboardUsagePage() {
   const { userId } = await auth();
@@ -24,15 +24,7 @@ export default async function DashboardUsagePage() {
         <DashboardUnavailable message={dashboardError ?? "The dashboard data could not be loaded right now."} />
       ) : (
         <DashboardDataView initialData={dashboardData}>
-          {({ dashboard }) => (
-            <div className="space-y-6">
-              <DashboardPageHeader
-                title="Usage"
-                description="Review recent credit consumption, transaction activity, and lightweight usage trends."
-              />
-              <UsageDashboard transactions={dashboard.transactions} />
-            </div>
-          )}
+          <DashboardUsageContent />
         </DashboardDataView>
       )}
     </DashboardShell>

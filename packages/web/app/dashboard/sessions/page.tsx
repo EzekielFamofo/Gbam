@@ -1,8 +1,8 @@
-import { DashboardDataView } from "../_components/dashboard-data-view";
-import { DashboardPageHeader, DashboardShell, DashboardUnavailable } from "../_components/dashboard-shell";
-import { SessionsTable } from "../_components/sessions-table";
-import { getDashboardData } from "@/lib/dashboard/get-dashboard";
 import { auth } from "@clerk/nextjs/server";
+import { DashboardDataView } from "../_components/dashboard-data-view";
+import { DashboardShell, DashboardUnavailable } from "../_components/dashboard-shell";
+import { getDashboardData } from "@/lib/dashboard/get-dashboard";
+import { DashboardSessionsContent } from "../_components/dashboard-sessions-content";
 
 export default async function DashboardSessionsPage() {
   const { userId } = await auth();
@@ -24,15 +24,7 @@ export default async function DashboardSessionsPage() {
         <DashboardUnavailable message={dashboardError ?? "The dashboard data could not be loaded right now."} />
       ) : (
         <DashboardDataView initialData={dashboardData}>
-          {({ dashboard, refreshDashboard }) => (
-            <div className="space-y-6">
-              <DashboardPageHeader
-                title="Sessions"
-                description="Browse the full session history for your CLI activity and manage titles or cleanup from one place."
-              />
-              <SessionsTable sessions={dashboard.sessions} onUpdated={refreshDashboard} />
-            </div>
-          )}
+          <DashboardSessionsContent />
         </DashboardDataView>
       )}
     </DashboardShell>
