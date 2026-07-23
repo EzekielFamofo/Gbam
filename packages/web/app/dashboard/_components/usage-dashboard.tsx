@@ -280,7 +280,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                   No usage recorded for this filter criteria.
                 </div>
               ) : (
-                <div className="overflow-x-auto pb-2">
+                <div className="overflow-x-auto overflow-y-visible pb-2">
                   <div className="min-w-[580px] space-y-2">
                     <div className="relative flex h-40 items-end gap-2 pt-10 border-b border-border/60">
                       <div className="pointer-events-none absolute inset-x-0 top-8 border-b border-dashed border-border/20" />

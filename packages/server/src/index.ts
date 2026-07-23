@@ -10,6 +10,7 @@ import dashboard from "./routes/dashboard";
 import dashboardBilling from "./routes/dashboard-billing";
 import dashboardSessions from "./routes/dashboard-sessions";
 import sessions from "./routes/sessions";
+import dashboardLimits from "./routes/dashboard-limits";
 
 // Middleware imports
 import { requireAuth } from "./middleware/require-auth";
@@ -70,8 +71,8 @@ const routes = app
     .route("/dashboard-billing", dashboardBilling)
     .route("/dashboard-sessions", dashboardSessions)
     .route("/sessions", sessions)
-    .route("/chat", chat);
-
+    .route("/chat", chat)
+    .route("/dashboard-limits", dashboardLimits);
 export type AppType = typeof routes;
 
 // Export underlying lib models and execution helpers for monorepo consumption

@@ -27,6 +27,7 @@ import { CalculateCreditsForUsage } from "../lib/credits";
 import { recordUsageCreditTransaction } from "../lib/credits-ledger";
 import { getAvailableCreditsBalance, IngestAiUsage } from "../lib/polar";
 import { requireAuth } from "../middleware/require-auth";
+import { requireSpendLimit } from "../middleware/require-spend-limit";
 
 type ChatMessageMetadata = {
   mode?: ModeType;
@@ -160,6 +161,7 @@ const app = new Hono<AuthenticatedEnv>()
     "/",
     submitValidator,
     requireCreditsBalance,
+    requireSpendLimit,
     async (c) => {
       const userId = c.get("userId");
       const { id, messages, mode, model, agentsMdHash, agentsMdContent, projectPath } = c.req.valid("json");
