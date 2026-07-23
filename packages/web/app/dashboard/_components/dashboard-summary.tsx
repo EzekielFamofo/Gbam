@@ -1,6 +1,6 @@
 import type { DashboardSummary } from "@gbam/shared";
 import { CreditCard, Clock3, TrendingUp } from "lucide-react";
-import { formatCredits, formatRelativeDate, formatSyncStatus } from "@/lib/dashboard/format";
+import { formatCredits, formatRelativeDate } from "@/lib/dashboard/format";
 
 export function DashboardSummaryCards({ summary }: { summary: DashboardSummary }) {
   return (
