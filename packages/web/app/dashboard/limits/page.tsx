@@ -1,4 +1,5 @@
-import { DashboardPageHeader, DashboardShell } from "../_components/dashboard-shell";
+import { DashboardShell } from "../_components/dashboard-shell";
+import { DashboardPageHeader } from "../_components/dashboard-header";
 import { EmptyState } from "../_components/empty-state";
 
 export default async function DashboardLimitsPage() {
