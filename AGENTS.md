@@ -156,3 +156,5 @@ This is the key interaction model to understand.
 - If behavior differs between local and production, check whether the code path is using `localhost:3001` or the Railway-hosted `https://api.gbam.dev` backend.
 
 Avoid using build commands, except when specified by the user
+Never reread Agents.md
+If user gives a task that require build mode tools, dont hallucinate and just ask user to switch you over to build mode

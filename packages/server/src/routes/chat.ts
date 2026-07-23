@@ -279,6 +279,14 @@ const app = new Hono<AuthenticatedEnv>()
         async onFinish(event) {
           if (event.isAborted) return;
 
+          // Don't persist or mark the session complete while this request's
+          // tool calls are still awaiting results - that was the missing
+          // guard causing both the lost-task bug (an incomplete message
+          // snapshot got saved mid-turn) and the dashboard status flicker
+          // (status flipped to "complete" every intermediate round trip in
+          // a multi-tool-call turn instead of only at the true end).
+          if (hasPendingToolCalls(event.responseMessage)) return;
+
           const completedAt = new Date();
 
           const sanitizedMessages = sanitizeUIMessagesForStorage(

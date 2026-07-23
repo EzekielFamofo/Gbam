@@ -94,7 +94,7 @@ export default async function DashboardPage() {
                   Welcome back, {name}
                 </h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
-                  This dashboard is intentionally simple: live credits balance, recent CLI sessions, and usage history tied to the same Clerk account you use on the web.
+                  This dashboard is intentionally simple: live credits balance, recent CLI sessions, and usage history tied to the same account you use on the cli.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
