@@ -1,7 +1,7 @@
 "use client";
 
 import { useDashboard } from "./dashboard-data-view";
-import { DashboardPageHeader } from "./dashboard-shell";
+import { DashboardPageHeader } from "./dashboard-header";
 import { DashboardSummaryCards } from "./dashboard-summary";
 import { RecentSessions } from "./recent-sessions";
 import { RecentTransactions } from "./recent-transactions";

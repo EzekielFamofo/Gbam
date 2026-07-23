@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { DashboardDataView } from "./_components/dashboard-data-view";
-import { DashboardShell, DashboardUnavailable } from "./_components/dashboard-shell";
+import { DashboardShell} from "./_components/dashboard-shell";
+import { DashboardUnavailable } from "./_components/dashboard-header";
 import { getDashboardData } from "@/lib/dashboard/get-dashboard";
 import { DashboardOverviewContent } from "./_components/dashboard-overview-content";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useDashboard } from "../_components/dashboard-data-view";
-import { DashboardPageHeader } from "../_components/dashboard-shell";
+import { DashboardPageHeader } from "./dashboard-header";
 import { UsageDashboard } from "../_components/usage-dashboard";
 
 export function DashboardUsageContent() {
