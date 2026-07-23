@@ -32,52 +32,65 @@ type Props = {
 
 export function RecentSessions({ sessions, onUpdated }: Props) {
   return (
-    <section className="rounded-3xl border border-border bg-card p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-display text-xl font-semibold">Recent sessions</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            The latest CLI sessions linked to this account, with their mode, model, and credits used.
-          </p>
-        </div>
+    <section className="rounded-xl border border-border/60 bg-card/40 overflow-hidden">
+      <div className="border-b border-border/60 px-5 py-4 bg-muted/20">
+        <h2 className="font-display text-base font-semibold">Recent sessions</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          The latest CLI sessions linked to this account, with their mode, model, and credits used.
+        </p>
       </div>
-      <div className="mt-5 space-y-3">
+
+      <div className="p-4">
         {sessions.length === 0 ? (
           <EmptyState
             title="No sessions yet"
             description="Run GBAM from your terminal and your completed sessions will begin to appear here."
           />
         ) : (
-          sessions.map((session) => (
-            <div key={session.id} className="rounded-2xl border border-border bg-background/50 px-4 py-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-display text-base font-semibold text-foreground" title={session.title}>
-                      {truncateSessionTitle(session.title)}
-                    </p>
-                    <RenameSessionButton sessionId={session.id} sessionTitle={session.title} onUpdated={onUpdated} />
-                    {session.lastMode ? (
-                      <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                        {session.lastMode}
+          <div className="divide-y divide-border/40 rounded-lg border border-border/50 bg-background/50 overflow-hidden">
+            {sessions.map((session) => (
+              <div
+                key={session.id}
+                className="p-3.5 text-xs hover:bg-muted/20 transition-colors"
+              >
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-sm text-foreground" title={session.title}>
+                        {truncateSessionTitle(session.title)}
+                      </p>
+                      <RenameSessionButton sessionId={session.id} sessionTitle={session.title} onUpdated={onUpdated} />
+                      {session.lastMode ? (
+                        <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-mono font-medium text-emerald-400 border border-emerald-500/20">
+                          {session.lastMode}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
+                      <span>
+                        Status: <span className="text-foreground font-medium">{formatStatus(session.status)}</span>
                       </span>
-                    ) : null}
+                      <span>•</span>
+                      <span>
+                        Model: <code className="font-mono text-foreground">{session.lastModel || "-"}</code>
+                      </span>
+                      <span>•</span>
+                      <span>
+                        Credits: <span className="font-mono font-semibold text-foreground">{formatCredits(session.creditsUsed)}</span>
+                      </span>
+                      <span>•</span>
+                      <span>{formatDateTime(session.lastActivityAt)}</span>
+                    </div>
                   </div>
-                  <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>Status: {formatStatus(session.status)}</span>
-                    <span>Model: {session.lastModel || "-"}</span>
-                    <span>Credits used: {formatCredits(session.creditsUsed)}</span>
+
+                  <div className="flex items-center gap-2 self-start md:self-center">
+                    <DeleteSessionButton sessionTitle={session.title} sessionId={session.id} onDeleted={onUpdated} />
                   </div>
-                  <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>Last updated: {formatDateTime(session.lastActivityAt)}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 self-end">
-                  <DeleteSessionButton sessionTitle={session.title} sessionId={session.id} onDeleted={onUpdated} />
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </section>

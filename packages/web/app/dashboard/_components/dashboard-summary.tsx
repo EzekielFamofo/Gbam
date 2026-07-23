@@ -5,32 +5,47 @@ import { formatCredits, formatRelativeDate } from "@/lib/dashboard/format";
 export function DashboardSummaryCards({ summary }: { summary: DashboardSummary }) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <CreditCard className="size-4 text-primary" /> Current credits
+      {/* Current Credits */}
+      <div className="rounded-xl border border-border/60 bg-card/50 p-4 shadow-xs">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+          <span>Current credits</span>
+          <CreditCard className="size-4 text-primary" />
         </div>
-        <p className="mt-3 font-display text-3xl font-semibold text-foreground">
-          {formatCredits(summary.creditsBalance)}
-        </p>
+        <div className="mt-2">
+          <span className="font-mono text-2xl font-bold tracking-tight text-foreground">
+            {formatCredits(summary.creditsBalance)}
+          </span>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">Available balance for CLI tasks</p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <TrendingUp className="size-4 text-primary" /> Credits used this month
+      {/* Credits Used This Month */}
+      <div className="rounded-xl border border-border/60 bg-card/50 p-4 shadow-xs">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+          <span>Credits used this month</span>
+          <TrendingUp className="size-4 text-primary" />
         </div>
-        <p className="mt-3 font-display text-3xl font-semibold text-foreground">
-          {formatCredits(summary.creditsUsedThisMonth)}
-        </p>
+        <div className="mt-2">
+          <span className="font-mono text-2xl font-bold tracking-tight text-foreground">
+            {formatCredits(summary.creditsUsedThisMonth)}
+          </span>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">Consumed across recent sessions</p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Clock3 className="size-4 text-primary" /> Last CLI activity
+      {/* Last CLI Activity */}
+      <div className="rounded-xl border border-border/60 bg-card/50 p-4 shadow-xs">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+          <span>Last CLI activity</span>
+          <Clock3 className="size-4 text-emerald-500" />
         </div>
-        <p className="mt-3 font-display text-2xl font-semibold text-foreground">
-          {formatRelativeDate(summary.lastCliActivityAt)}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">Your most recent CLI session activity</p>
+        <div className="mt-2">
+          <span className="text-xl font-semibold tracking-tight text-foreground">
+            {formatRelativeDate(summary.lastCliActivityAt)}
+          </span>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">Your most recent session activity</p>
       </div>
     </div>
-  )}
+  );
+}
