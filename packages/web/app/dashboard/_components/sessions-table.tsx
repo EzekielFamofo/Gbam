@@ -26,6 +26,22 @@ function getModeClasses(mode: DashboardSessionItem["lastMode"]) {
   return "border-primary/20 bg-primary/10 text-primary";
 }
 
+function formatProjectPath(path: string | null | undefined) {
+  if (!path) return "—";
+  
+  const separator = path.includes("\\") ? "\\" : "/";
+  const parts = path.split(separator);
+
+  if (parts.length <= 3) {
+    return path.length > 25 ? `${path.slice(0, 10)}...${path.slice(-10)}` : path;
+  }
+
+  const start = parts.slice(0, 2).join(separator);
+  const end = parts[parts.length - 1];
+  
+  return `${start}${separator}...${separator}${end}`;
+}
+
 export function SessionsTable({
   sessions,
   onUpdated,
@@ -47,6 +63,7 @@ export function SessionsTable({
         session.lastMode ?? "",
         session.lastModel ?? "",
         session.status,
+        session.projectPath ?? "",
       ].some((value) => value.toLowerCase().includes(normalizedQuery));
     });
   }, [query, sessions]);
@@ -57,13 +74,13 @@ export function SessionsTable({
         <div>
           <h3 className="font-display text-base font-semibold">All sessions</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Search and manage every CLI session linked to this account by title, mode, model, or status.
+            Search and manage every CLI session linked to this account by title, path, mode, model, or status.
           </p>
         </div>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search sessions by title..."
+          placeholder="Search sessions by title or path..."
           className="h-9 w-full rounded-md border border-border/60 bg-background/60 px-3 text-xs outline-none ring-0 transition focus:border-primary md:max-w-xs"
         />
       </div>
@@ -75,7 +92,7 @@ export function SessionsTable({
             description={
               sessions.length === 0
                 ? "Run GBAM from your terminal and your completed sessions will begin to appear here."
-                : "Try a different search term for title, mode, model, or status."
+                : "Try a different search term for title, path, mode, model, or status."
             }
           />
         </div>
@@ -87,6 +104,7 @@ export function SessionsTable({
                 <tr className="bg-muted/20 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   <th className="py-3 pl-5 pr-4">Session</th>
                   <th className="py-3 px-4">Mode</th>
+                  <th className="py-3 px-4">Project Path</th>
                   <th className="py-3 px-4">Last activity</th>
                   <th className="py-3 px-4">Credits used</th>
                   <th className="py-3 px-4">Model</th>
@@ -110,6 +128,18 @@ export function SessionsTable({
                         <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-mono font-medium uppercase ${getModeClasses(session.lastMode)}`}>
                           {session.lastMode}
                         </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-muted-foreground whitespace-nowrap">
+                      {session.projectPath ? (
+                         <span 
+                           className="font-mono text-[11px] text-muted-foreground/80 cursor-help" 
+                           title={session.projectPath}
+                         >
+                           {formatProjectPath(session.projectPath)}
+                         </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}

@@ -107,7 +107,7 @@ export default function Home() {
                     Subscription vs. Pay-As-You-Go
                   </h2>
                   <p className="mt-3 text-muted-foreground">
-                    Fixed AI subscriptions charge the same every month whether you code daily or barely touch them. GBAM tracks exact usage instead.
+                    Most tools charge you 28,000/month whether you use them or not. With GBAM, you buy credits once, and they never expire. Use them today, next week, or next year—your balance is always yours.
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
@@ -144,7 +144,7 @@ export default function Home() {
                 Watch the CLI and dashboard stay in sync.
               </h2>
               <p className="mt-4 text-muted-foreground">
-                A single coding session should show exactly what happened, how many tokens were consumed, and what it cost—without waiting for the end of the month.
+                A single coding session should show exactly what happened, how many credits were consumed, and what it cost—without waiting for the end of the month.
               </p>
             </div>
 

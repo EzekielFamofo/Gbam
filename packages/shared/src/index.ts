@@ -34,3 +34,5 @@ export {
     type DashboardTransactionItem,
     type DashboardTransactionType,
 } from "./dashboard";
+
+export * from "./permissions";

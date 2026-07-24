@@ -88,3 +88,11 @@ model TokenLog {
   @@index([provider])
   @@index([createdAt])
 }
+
+
+model UserSettings {
+  userId           String   @id
+  permissionConfig Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

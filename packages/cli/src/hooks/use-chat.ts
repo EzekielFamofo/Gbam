@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useChat as useAiChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -13,11 +13,13 @@ import {
   type ModeType,
   type SupportedChatModelId,
   type ToolContracts,
+  type PermissionRule,
 } from "@gbam/shared";
 import { apiClient } from "../lib/api-client";
 import { getAuth } from "../lib/auth";
 import { ensureRootAgentsFile } from "../lib/ensure-root-agents-file";
-import { executeLocalTool, getAgentsMdContext } from "../lib/local-tools";
+import { getAgentsMdContext } from "../lib/local-tools";
+import { executeToolWithPermission } from "../lib/permissions-gate";
 
 export type ChatMessageMetadata = {
   mode?: ModeType;
@@ -35,8 +37,26 @@ type ChatTools = {
 
 export type Message = UIMessage<ChatMessageMetadata, never, ChatTools>;
 
-export function useChat(sessionId: string, initialMessages: Message[], projectPath?: string) {
+export function useChat(
+  sessionId: string, 
+  initialMessages: Message[], 
+  projectPath?: string,
+  requestConfirmation?: (tool: string, target: string) => Promise<"yes" | "no" | "always">
+) {
   const resolvedProjectPath = projectPath ?? process.cwd();
+  const [permissionConfig, setPermissionConfig] = useState<PermissionRule[] | null>(null);
+
+  // Fetch permission rules once on mount
+useEffect(() => {
+    apiClient.permissions.$get()
+      .then(async (res) => {
+        if (res.ok) {
+          const data = (await res.json()) as { permissionConfig: PermissionRule[] | null };
+          setPermissionConfig(data.permissionConfig);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch permissions:", err));
+  }, []);
 
   const transport = useMemo(() => {
     return new DefaultChatTransport<Message>({
@@ -60,8 +80,6 @@ export function useChat(sessionId: string, initialMessages: Message[], projectPa
           bufferedMessages.findLast((m) => m.metadata?.model)?.metadata?.model ??
           DEFAULT_CHAT_MODEL_ID;
 
-        // Send the current AGENTS.md state on every request so the server can
-        // inject the latest repo guidance directly into the system prompt.
         const agentsMd = await getAgentsMdContext(resolvedProjectPath);
 
         return {
@@ -87,11 +105,16 @@ export function useChat(sessionId: string, initialMessages: Message[], projectPa
       const mode =
         chat.messages.findLast((m) => m.metadata?.mode)?.metadata?.mode ?? "BUILD";
 
-      // projectPath must be threaded through here too - otherwise the agent's
-      // tool calls (readFile, writeFile, bash, ...) resolve against wherever
-      // this process happens to be running, not the project the hash/prompt
-      // were computed for.
-      void executeLocalTool(toolCall.toolName, toolCall.input, mode, resolvedProjectPath)
+      const confirmHandler = requestConfirmation ?? (async () => "no" as const);
+
+      void executeToolWithPermission(
+        toolCall.toolName,
+        toolCall.input,
+        mode as ModeType,
+        resolvedProjectPath,
+        permissionConfig,
+        confirmHandler
+      )
         .then((output) =>
           chat.addToolOutput({
             tool: toolCall.toolName as keyof ChatTools,

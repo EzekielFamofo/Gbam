@@ -1,0 +1,180 @@
+GBAM CLI User Manual
+
+Overview
+GBAM is a terminal chat app for working with AI conversations and real project context. The CLI is the part of the system that can access your local repository, read and edit files, and run local commands. The server handles authentication, persistence, model execution, billing, and streamed responses.
+
+Core user-facing features
+- Start a new conversation
+- Continue an existing session
+- Browse past sessions
+- Rename sessions
+- Switch agent mode
+- Select a model
+- Sign in and sign out
+- Open upgrade checkout
+- Open billing / usage portal
+- Interrupt streaming output with Esc
+
+Install and first run
+Install the global CLI:
+- npm install -g gbam-dev
+
+Start the app from the repository you want to work in:
+- gbam
+
+Working directory behavior
+- Run GBAM inside the project you want the agent to inspect
+- The CLI uses the current project path to scope local tools
+- The same project path is used for AGENTS.md discovery and tool execution
+
+Slash commands
+The command menu is driven by `/` commands in the input bar.
+
+Available commands
+- /new — start a new conversation
+- /agents — switch between Plan and Build modes
+- /models — choose the AI model
+- /sessions — browse past sessions
+- /login — sign in with your browser
+- /logout — clear local auth state
+- /upgrade — open credits checkout in your browser
+- /usage — open the billing portal in your browser
+- /exit — quit the application
+
+Keyboard shortcuts and interaction
+- Type `/` to open the command menu
+- Press Tab in the main input layer to toggle agent mode
+- Press Esc while streaming to interrupt output
+- Press Ctrl+R in a session to rename the current session
+
+Modes
+GBAM exposes two agent modes:
+- Build
+- Plan
+
+Mode matters because it affects what tools are available and whether the agent is allowed to modify the repository.
+
+Plan mode
+- Read-only planning / research mode
+- Best for explanation, tracing, architecture review, and change proposals
+- Available local tools are limited to:
+  - readFile
+  - listDirectory
+  - glob
+  - grep
+  - webfetch
+- File edits, file writes, and shell execution are blocked in Plan mode
+
+Build mode
+- Full implementation mode
+- Can read files, search, edit files, write files, fetch web content, and run shell commands
+- Best for direct code changes and repository updates
+
+Sessions
+- New sessions are created by the CLI and persisted on the server
+- Session titles usually derive from the current directory name
+- Past sessions can be listed, searched, and reopened
+- Sessions can be renamed
+- A session stores messages and remembers the last mode and model used
+
+Streaming
+- Assistant responses stream back into the terminal
+- While streaming, pressing Esc interrupts output
+
+Models
+Supported chat models in shared source are:
+- gemini-3.5-flash
+- gemini-3-flash-preview
+- gemini-3.1-flash-lite
+- gpt-4o
+- gpt-4.1
+- gpt-5.4
+- gpt-5-codex
+
+Default model
+- gpt-5.4
+
+Model metadata exposed in the CLI
+- Provider: google or openai
+- Cost tier: $, $$, $$$, $$$$
+- Thinking support: some models are marked as supporting thinking
+
+The model picker supports searching by
+- model id
+- provider name
+- cost tier
+- thinking / think
+
+AGENTS.md behavior
+- Before sending your first prompt in a project, the CLI ensures there is an AGENTS.md file at the project root
+- If one does not exist, GBAM creates a starter AGENTS.md automatically
+- The CLI reads the local AGENTS.md and sends:
+  - agentsMdHash
+  - agentsMdContent
+  - projectPath
+  with each chat request
+- This lets the server inject repo-specific guidance into the system prompt even though the server cannot read local files directly
+
+Why AGENTS.md matters
+- It is the repo-specific guidance file for coding style, test commands, architecture rules, and safety notes
+- It is discovered locally by the CLI but consumed by the server when building the model prompt
+- It helps the agent stay aligned with project conventions across turns
+
+Local tool execution
+The CLI performs tool side effects locally inside the user project. Tool paths are restricted to stay inside the selected project directory.
+
+Available local tools in source
+- readFile
+- listDirectory
+- glob
+- grep
+- writeFile
+- editFile
+- webfetch
+- bash
+
+Tool behavior notes
+- readFile supports line-range reads with startLine and lineCount
+- Large file reads are truncated with warnings
+- listDirectory is used for project navigation
+- webfetch fetches a URL and strips HTML / script / style content down to text
+- bash runs locally with a default timeout of 45 seconds
+- BUILD includes writeFile, editFile, and bash in addition to the read-only tool set
+
+Auth and billing
+- Login starts in the CLI and opens the browser
+- The CLI starts a temporary local callback server to complete browser-linked auth
+- The returned bearer token is stored locally in ~/.gbam/auth.json
+- Logout clears locally stored auth state
+- Upgrade opens a hosted checkout flow in the browser
+- Usage opens the billing portal in the browser
+
+Responsibility split
+CLI
+- terminal UI
+- collects chat messages
+- chooses mode and model
+- reads AGENTS.md
+- executes local tools
+- stores local auth state
+
+Server
+- authentication
+- session persistence
+- system prompt construction
+- model execution
+- usage tracking and billing
+- streaming responses back to the CLI
+
+Safety boundaries
+- The server does not have direct access to your local repository files
+- Tool side effects happen locally in the CLI
+- PLAN mode provides read-only operation
+- BUILD mode is explicit about repository-changing actions
+- Tool paths are scoped to the active project directory
+
+Troubleshooting
+- If login opens in the browser but does not complete, finish the full browser flow and retry /login
+- If the agent cannot see your files, make sure you started GBAM from the intended project directory
+- If you want analysis only, switch to Plan mode via /agents or Tab
+- If a response is streaming too long, press Esc to interrupt it

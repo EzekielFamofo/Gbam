@@ -2,6 +2,7 @@ import { memo, type ReactNode } from "react";
 import { InputBar } from "./input-bar";
 import { TranscriptPane } from "./transcript-pane";
 import { SessionFooter } from "./session-footer";
+import { PermissionPrompt } from "./permission-prompt";
 import { UI_THEME } from "src/lib/ui-theme";
 
 type Props = {
@@ -10,6 +11,11 @@ type Props = {
   inputDisabled?: boolean;
   loading?: boolean;
   interruptible?: boolean;
+  pendingToolAction?: {
+    tool: string;
+    target: string;
+  } | null;
+  onPermissionSelect?: (choice: "yes" | "no" | "always") => void;
 };
 
 const ComposerPane = memo(function ComposerPane({
@@ -32,6 +38,8 @@ export function SessionShell({
   inputDisabled = false,
   loading = false,
   interruptible = false,
+  pendingToolAction = null,
+  onPermissionSelect,
 }: Props) {
   return (
     <box
@@ -45,7 +53,21 @@ export function SessionShell({
       backgroundColor={UI_THEME.background}
     >
       <TranscriptPane>{children}</TranscriptPane>
-      <ComposerPane onSubmit={onSubmit} inputDisabled={inputDisabled} />
+
+      {pendingToolAction && onPermissionSelect && (
+        <box flexShrink={0}>
+          <PermissionPrompt
+            tool={pendingToolAction.tool}
+            target={pendingToolAction.target}
+            onSelect={onPermissionSelect}
+          />
+        </box>
+      )}
+
+      <ComposerPane
+        onSubmit={onSubmit}
+        inputDisabled={inputDisabled || Boolean(pendingToolAction)}
+      />
       <SessionFooter loading={loading} interruptible={interruptible} />
     </box>
   );

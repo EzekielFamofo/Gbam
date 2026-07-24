@@ -66,6 +66,7 @@ export async function recordUsageCreditTransaction({
   const now = new Date();
 
   await db.$transaction(async (tx) => {
+    // 1. Deduplication Guard
     const existing = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT "id"
       FROM "CreditTransaction"
@@ -74,7 +75,7 @@ export async function recordUsageCreditTransaction({
     `;
 
     if (existing.length > 0) {
-      return;
+      return; 
     }
 
     const accountRows = await tx.$queryRaw<CreditAccountRow[]>`
@@ -92,6 +93,7 @@ export async function recordUsageCreditTransaction({
     const nextLastReconciledAt =
       providerBalanceCreditsAfter != null ? now : currentAccount?.lastReconciledAt ?? null;
 
+    // 2. Update CreditAccount
     await tx.$executeRaw`
       INSERT INTO "CreditAccount" (
         "id",
@@ -121,6 +123,7 @@ export async function recordUsageCreditTransaction({
         "updatedAt" = ${now}
     `;
 
+    // 3. Insert CreditTransaction
     await tx.$executeRaw`
       INSERT INTO "CreditTransaction" (
         "id",
@@ -152,6 +155,14 @@ export async function recordUsageCreditTransaction({
         ${null},
         ${now}
       )
+    `;
+
+    // 4. Safely Increment Session creditsUsed
+    await tx.$executeRaw`
+      UPDATE "Session"
+      SET "creditsUsed" = COALESCE("creditsUsed", 0) + ${credits},
+          "updatedAt" = ${now}
+      WHERE "id" = ${sessionId} AND "userId" = ${userId}
     `;
   });
 }

@@ -52,8 +52,29 @@ function SessionChat({
   const { mode, model, setModel } = usePromptConfig();
   const { isTopLayer } = useKeyboardLayer();
   const dialog = useDialog();
-  const { messages, status, submit, abort, interrupt, error } = useChat(session.id, initialMessages);
   const hasSubmittedInitialPromptRef = useRef(false);
+
+  // 1. State to manage active permission confirmation prompts
+  const [pendingToolAction, setPendingToolAction] = useState<{
+    tool: string;
+    target: string;
+    resolve: (choice: "yes" | "no" | "always") => void;
+  } | null>(null);
+
+  // 2. Define the confirmation handler for useChat
+  const handleRequestConfirmation = useCallback((tool: string, target: string) => {
+    return new Promise<"yes" | "no" | "always">((resolve) => {
+      setPendingToolAction({ tool, target, resolve });
+    });
+  }, []);
+
+  // 3. Pass the confirmation handler into useChat
+  const { messages, status, submit, abort, interrupt, error } = useChat(
+    session.id, 
+    initialMessages, 
+    undefined, 
+    handleRequestConfirmation
+  );
 
   useEffect(() => {
     return () => {
@@ -67,8 +88,7 @@ function SessionChat({
       interrupt();
     }
 
-    
-  if ((key.ctrl || key.meta) && key.name === "r" && isTopLayer("base")) {
+    if ((key.ctrl || key.meta) && key.name === "r" && isTopLayer("base")) {
       key.preventDefault();
       dialog.open({
         title: "Rename Session",
@@ -132,7 +152,18 @@ function SessionChat({
   const loading = status === "submitted" || status === "streaming";
 
   return (
-    <SessionShell onSubmit={handleSubmit} loading={loading} interruptible={loading}>
+    <SessionShell 
+      onSubmit={handleSubmit} 
+      loading={loading} 
+      interruptible={loading}
+      pendingToolAction={pendingToolAction}
+      onPermissionSelect={(choice) => {
+        if (pendingToolAction) {
+          pendingToolAction.resolve(choice);
+          setPendingToolAction(null);
+        }
+      }}
+    >
       {messages.map((message) => (
         <TranscriptMessage
           key={message.id}

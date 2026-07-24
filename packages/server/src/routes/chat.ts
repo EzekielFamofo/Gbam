@@ -349,15 +349,6 @@ const app = new Hono<AuthenticatedEnv>()
               providerBalanceCreditsAfter,
             });
 
-            await db.session.update({
-              where: { id, userId },
-              data: {
-                creditsUsed: {
-                  increment: billableUsage.credits,
-                },
-                updatedAt: completedAt,
-              },
-            });
           } catch (error) {
             console.error("Failed to ingest Polar AI usage for chat message", {
               error,
