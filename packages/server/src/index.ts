@@ -15,6 +15,7 @@ import permissions from "./routes/permissions";
 
 // Middleware imports
 import { requireAuth } from "./middleware/require-auth";
+import dashboardPermissions from "./routes/dasboard-permissions";
 
 const app = new Hono();
 
@@ -74,7 +75,8 @@ const routes = app
     .route("/sessions", sessions)
     .route("/chat", chat)
     .route("/dashboard-limits", dashboardLimits)
-    .route("/permissions", permissions);
+    .route("/permissions", permissions)
+    .route("/dashboard/permissions", dashboardPermissions);
 export type AppType = typeof routes;
 
 // Export underlying lib models and execution helpers for monorepo consumption
