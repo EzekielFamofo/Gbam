@@ -24,6 +24,13 @@ export async function getPermissions(): Promise<{ permissionConfig: PermissionRu
     cache: "no-store",
   });
 
-  if (!response.ok) throw new Error("Unable to load permission settings");
+  if (!response.ok) {
+    const body = await response.text().catch(() => "<no body>");
+    console.error(
+      `[get-permissions] ${apiUrl}/dashboard-permissions -> ${response.status} ${response.statusText}: ${body}`
+    );
+    throw new Error(`Unable to load permission settings (${response.status})`);
+  }
+
   return response.json();
 }
