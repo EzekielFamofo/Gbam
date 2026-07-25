@@ -6,10 +6,11 @@ import {
     type InternalWebAuthEnv,
 } from "../middleware/require-internal-web-auth";
 import { getPermissionsData, updatePermissionsData } from "../lib/permissions";
-import { permissionConfigSchema } from "@gbam/shared";
+import { permissionRuleSchema, userProtectedPathSchema } from "@gbam/shared";
 
 const updateSchema = z.object({
-    permissionConfig: permissionConfigSchema,
+    permissionConfig: z.array(permissionRuleSchema).max(100).nullable(),
+    protectedPaths: z.array(userProtectedPathSchema).max(50).nullable(),
 });
 
 const updateValidator = zValidator("json", updateSchema, (result, c) => {
@@ -27,7 +28,7 @@ const app = new Hono<InternalWebAuthEnv>()
     .patch("/", updateValidator, async (c) => {
         const userId = c.get("userId");
         const input = c.req.valid("json");
-        await updatePermissionsData(userId, input.permissionConfig);
+        await updatePermissionsData(userId, input);
         return c.json(await getPermissionsData(userId));
     });
 

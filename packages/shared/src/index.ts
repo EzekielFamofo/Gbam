@@ -6,6 +6,7 @@ export {
     type SupportedProvider,
     type SupportedChatModel,
     type SupportedChatModelId,
+    CostTier,
 } from "./models";
 
 export {
@@ -36,3 +37,4 @@ export {
 } from "./dashboard";
 
 export * from "./permissions";
+export * from "./pricing";

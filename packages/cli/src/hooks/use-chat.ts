@@ -13,7 +13,8 @@ import {
   type ModeType,
   type SupportedChatModelId,
   type ToolContracts,
-  type PermissionRule,
+  normalizeStoredPermissionConfig, 
+  type UserPermissionConfig
 } from "@gbam/shared";
 import { apiClient } from "../lib/api-client";
 import { getAuth } from "../lib/auth";
@@ -52,14 +53,14 @@ export function useChat(
   // Held as an in-flight promise, not a nullable value, so any tool call that
   // fires before the fetch resolves awaits the *same* request rather than
   // reading a stale `null` and silently falling back to default rules.
-  const permissionConfigRef = useRef<Promise<PermissionRule[] | null> | undefined>(undefined);
+  const permissionConfigRef = useRef<Promise<UserPermissionConfig | null> | undefined>(undefined);
 
   const fetchPermissionConfig = useCallback(async () => {
     try {
       const res = await apiClient.permissions.$get();
       if (!res.ok) throw new Error(`Failed to fetch permissions (${res.status})`);
-      const data = (await res.json()) as { permissionConfig: PermissionRule[] | null };
-      return data.permissionConfig;
+      const data = (await res.json()) as { permissionConfig: unknown };
+      return normalizeStoredPermissionConfig(data.permissionConfig);
     } catch (err) {
       console.error("Failed to fetch permissions, falling back to defaults:", err);
       return null;

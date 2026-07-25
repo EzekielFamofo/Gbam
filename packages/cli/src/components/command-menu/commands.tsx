@@ -3,9 +3,11 @@ import { SessionsDialogContent, AgentsDialogContent, ModelsDialogContent } from 
 import type {Command} from "./type"
 import { performLogin } from "src/lib/oauth";
 import { clearAuth } from "src/lib/auth";
-import { openBillingPortal, openUpgradeCheckout } from "src/lib/upgrade";
+import open from "open";
 // defines the commands shown and their action, name and description are used in index.tsx
 // Portions of this file are derived from opencode (c) 2025 opencode under the MIT License.
+
+const WEB_URL = process.env.WEB_URL || "https://gbam.dev";
 
 export const COMMANDS: Command[] = [
     {
@@ -83,35 +85,35 @@ export const COMMANDS: Command[] = [
         description: "Buy more credits",
         value: "/upgrade",
         action: async (ctx) => {
-            ctx.toast.show({message: "Opening credits checkout..."});
+            ctx.toast.show({message: "Opening pricing page in browser..."});
 
             try {
-                await openUpgradeCheckout();
+                await open(new URL("/pricing", WEB_URL).toString());
                 ctx.toast.show({
                     variant: "success",
-                    message: "Checkout opened in browser",
+                    message: "Pricing page opened in browser",
                 });
             } catch (error) {
-                const message = error instanceof Error ? error.message : "Failed to open checkout";
+                const message = error instanceof Error ? error.message : "Failed to open pricing page";
                 ctx.toast.show({ variant: "error", message});
             }
         },
     },
     {
         name: "usage",
-        description: "Open billing portal in your browser",
+        description: "Open usage dashboard in your browser",
         value: "/usage",
         action: async (ctx) => {
-            ctx.toast.show({message: "Opening billing portal..."});
+            ctx.toast.show({message: "Opening usage dashboard..."});
 
             try {
-                await openBillingPortal();
+                await open(new URL("/dashboard/usage", WEB_URL).toString());
                 ctx.toast.show({
                     variant: "success",
-                    message: "Billing portal opened in browser",
+                    message: "Usage dashboard opened in browser",
                 });
             } catch (error) {
-                const message = error instanceof Error ? error.message : "Failed to open billing portal";
+                const message = error instanceof Error ? error.message : "Failed to open usage dashboard";
                 ctx.toast.show({ variant: "error", message});
             }
         },

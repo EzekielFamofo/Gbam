@@ -1,4 +1,5 @@
 import { Polar } from "@polar-sh/sdk"
+import { creditPackIdSchema, type CreditPackId } from "@gbam/shared";
 
 type PolarServer = "sandbox" | "production";
 
@@ -14,8 +15,18 @@ export function getPolarAccessToken() {
     return getRequiredEnv("POLAR_ACCESS_TOKEN");
 }
 
-export function getPolarProductId() {
-    return getRequiredEnv("POLAR_PRODUCT_ID");
+const PACK_PRODUCT_ENV_VARS: Record<CreditPackId, string> = {
+    starter: "POLAR_PRODUCT_ID_STARTER",
+    builder: "POLAR_PRODUCT_ID_BUILDER",
+    pro: "POLAR_PRODUCT_ID_PRO",
+};
+
+export function getPolarProductId(packId: CreditPackId) {
+    const parsed = creditPackIdSchema.safeParse(packId);
+    if (!parsed.success) {
+        throw new Error(`Unknown credit pack: ${packId}`);
+    }
+    return getRequiredEnv(PACK_PRODUCT_ENV_VARS[parsed.data]);
 }
 
 export function getPolarCreditsMeterId() {
@@ -51,21 +62,27 @@ function hasStatusCode(error: unknown): error is { statusCode: number } {
 
 type CreateCheckoutUrlParams = {
     customerExternalId: string;
-    requestUrl: string
+    requestUrl: string;
+    packId: CreditPackId;
 }
 
-export async function createCheckoutUrl({ customerExternalId, requestUrl }: CreateCheckoutUrlParams) {
+export async function createCheckoutUrl({ customerExternalId, requestUrl, packId }: CreateCheckoutUrlParams) {
     const result = await polar.checkouts.create({
-        products: [getPolarProductId()],
+        products: [getPolarProductId(packId)],
         successUrl: new URL("/billing/success", requestUrl).toString(),
         externalCustomerId: customerExternalId,
-        metadata: { source: "gbam-cli" },
+        metadata: { source: "gbam-cli", packId },
     });
 
     return result.url;
 }
 
-export async function createCustomerPortalUrl({ customerExternalId, requestUrl }: CreateCheckoutUrlParams) {
+type CreateCustomerPortalUrlParams = {
+    customerExternalId: string;
+    requestUrl: string;
+}
+
+export async function createCustomerPortalUrl({ customerExternalId, requestUrl }: CreateCustomerPortalUrlParams) {
     try {
         const result = await polar.customerSessions.create({
             externalCustomerId: customerExternalId,
@@ -127,4 +144,3 @@ export async function IngestAiUsage({ externalCustomerId, eventId, credits }: In
         ],
     });
 }
-

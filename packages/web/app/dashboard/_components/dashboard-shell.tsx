@@ -168,7 +168,7 @@ export async function DashboardShell({
                   </div>
 
                   <div className="flex items-center gap-2.5">
-                    <Link href="/api/dashboard/checkout">
+                    <Link href="/pricing">
                       <Button size="sm" className="h-8 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90">
                         Buy credits
                       </Button>

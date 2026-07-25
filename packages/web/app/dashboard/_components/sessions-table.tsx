@@ -30,13 +30,13 @@ function formatProjectPath(path: string | null | undefined) {
   if (!path) return "—";
   
   const separator = path.includes("\\") ? "\\" : "/";
-  const parts = path.split(separator);
+  const parts = path.split(separator).filter(Boolean);
 
-  if (parts.length <= 3) {
+  if (parts.length <= 2) {
     return path.length > 25 ? `${path.slice(0, 10)}...${path.slice(-10)}` : path;
   }
 
-  const start = parts.slice(0, 2).join(separator);
+  const start = parts[0];
   const end = parts[parts.length - 1];
   
   return `${start}${separator}...${separator}${end}`;
@@ -98,66 +98,69 @@ export function SessionsTable({
         </div>
       ) : (
         <div className="mt-5 overflow-hidden rounded-lg border border-border/50 bg-background/50">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border/40 text-xs">
+          {/* Scrollable container with styled scrollbars matching dark theme */}
+          <div className="overflow-x-auto [scrollbar-width:thin] [scrollbar-color:hsl(var(--border)/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/60 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40">
+            <table className="w-full text-left text-xs divide-y divide-border/40">
               <thead>
-                <tr className="bg-muted/20 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <th className="py-3 pl-5 pr-4">Session</th>
-                  <th className="py-3 px-4">Mode</th>
-                  <th className="py-3 px-4">Project Path</th>
-                  <th className="py-3 px-4">Last activity</th>
-                  <th className="py-3 px-4">Credits used</th>
-                  <th className="py-3 px-4">Model</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 pl-4 pr-5 text-right">Actions</th>
+                <tr className="bg-muted/20 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <th className="py-2.5 pl-4 pr-3">Session</th>
+                  <th className="py-2.5 px-3">Mode</th>
+                  <th className="py-2.5 px-3">Project Path</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Last activity</th>
+                  <th className="py-2.5 px-3">Credits</th>
+                  <th className="py-2.5 px-3">Model</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 pl-3 pr-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
                 {filteredSessions.map((session) => (
                   <tr key={session.id} className="align-middle hover:bg-muted/20 transition-colors">
-                    <td className="py-3.5 pl-5 pr-4">
-                      <div>
-                        <p className="font-semibold text-foreground" title={session.title}>
+                    <td className="py-3 pl-4 pr-3 max-w-[180px]">
+                      <div className="truncate">
+                        <p className="font-semibold text-foreground truncate" title={session.title}>
                           {session.title}
                         </p>
-                        <p className="font-mono text-[10px] text-muted-foreground">{session.id}</p>
+                        <p className="font-mono text-[10px] text-muted-foreground truncate">{session.id}</p>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3 px-3">
                       {session.lastMode ? (
-                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-mono font-medium uppercase ${getModeClasses(session.lastMode)}`}>
+                        <span className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-mono font-medium uppercase ${getModeClasses(session.lastMode)}`}>
                           {session.lastMode}
                         </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-muted-foreground whitespace-nowrap">
+                    <td className="py-3 px-3 max-w-[150px] truncate text-muted-foreground">
                       {session.projectPath ? (
-                         <span 
-                           className="font-mono text-[11px] text-muted-foreground/80 cursor-help" 
-                           title={session.projectPath}
-                         >
-                           {formatProjectPath(session.projectPath)}
-                         </span>
+                        <span 
+                          className="font-mono text-[11px] text-muted-foreground/90 cursor-help" 
+                          title={session.projectPath}
+                        >
+                          {formatProjectPath(session.projectPath)}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-muted-foreground whitespace-nowrap">
+                    <td className="py-3 px-3 text-muted-foreground whitespace-nowrap text-[11px]">
                       {formatDateTime(session.lastActivityAt)}
                     </td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-foreground">
+                    <td className="py-3 px-3 font-mono font-bold text-foreground whitespace-nowrap">
                       {formatCredits(session.creditsUsed)}
                     </td>
-                    <td className="py-3.5 px-4 font-mono text-muted-foreground">{session.lastModel ?? "—"}</td>
-                    <td className="py-3.5 px-4">
-                      <span className="inline-flex rounded-md border border-border/60 bg-muted/60 px-2 py-0.5 text-[10px] font-mono uppercase font-medium text-muted-foreground">
+                    <td className="py-3 px-3 font-mono text-[11px] text-muted-foreground max-w-[120px] truncate" title={session.lastModel ?? ""}>
+                      {session.lastModel ?? "—"}
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="inline-flex rounded-md border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono uppercase font-medium text-muted-foreground">
                         {formatStatus(session.status)}
                       </span>
                     </td>
-                    <td className="py-3.5 pl-4 pr-5 text-right">
-                      <div className="flex justify-end gap-2">
+                    <td className="py-3 pl-3 pr-4 text-right">
+                      <div className="flex justify-end gap-1.5">
                         <RenameSessionButton sessionId={session.id} sessionTitle={session.title} onUpdated={onUpdated} />
                         <DeleteSessionButton sessionId={session.id} sessionTitle={session.title} onDeleted={onUpdated} />
                       </div>
