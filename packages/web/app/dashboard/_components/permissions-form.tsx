@@ -87,24 +87,25 @@ export function PermissionsForm({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-hidden rounded-lg border border-border/60 divide-y divide-border/60">
+    <div className="space-y-6">
+      {/* List Container matching the nested cards from the Home page */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-background/60 divide-y divide-border/60">
         {CATEGORIES.map((category) => {
           const action = getAction(category);
           return (
             <div
               key={category}
-              className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/30"
+              className="flex items-center justify-between gap-4 p-5 transition-colors hover:bg-muted/30"
             >
               <div>
-                <p className="text-sm font-medium">{CATEGORY_LABELS[category]}</p>
-                <p className="font-mono text-[11px] text-muted-foreground">{category}</p>
+                <p className="text-base font-medium">{CATEGORY_LABELS[category]}</p>
+                <p className="mt-1 font-mono text-[11px] text-muted-foreground">{category}</p>
               </div>
 
               <div className="relative">
                 <select
                   className={cn(
-                    "cursor-pointer appearance-none rounded-md border px-3 py-1.5 pr-7 text-xs font-medium capitalize outline-none transition-colors",
+                    "cursor-pointer appearance-none rounded-md border px-4 py-2 pr-8 text-xs font-semibold capitalize outline-none transition-colors",
                     ACTION_STYLES[action]
                   )}
                   value={action}
@@ -116,32 +117,38 @@ export function PermissionsForm({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 opacity-60" />
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 opacity-60" />
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button size="sm" onClick={handleSave} disabled={isPending}>
+      <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center gap-4">
+          <Button 
+            size="lg" 
+            onClick={handleSave} 
+            disabled={isPending}
+            className="font-semibold shadow-sm"
+          >
             {isPending ? "Saving..." : "Save changes"}
           </Button>
           {isCustomState && (
             <Button
-              size="sm"
+              size="default"
               variant="ghost"
-              className="gap-1.5 text-xs text-muted-foreground"
+              className="gap-2 text-sm text-muted-foreground hover:text-foreground"
               onClick={handleReset}
               disabled={isPending}
             >
-              <RotateCcw className="size-3.5" /> Reset to defaults
+              <RotateCcw className="size-4" /> Reset to defaults
             </Button>
           )}
         </div>
-        <div className="text-xs">
-          {saved && <span className="text-emerald-400">Saved</span>}
+        
+        <div className="text-sm font-medium">
+          {saved && <span className="text-emerald-400">Successfully saved</span>}
           {error && <span className="text-red-400">{error}</span>}
         </div>
       </div>
