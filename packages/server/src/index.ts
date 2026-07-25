@@ -11,11 +11,11 @@ import dashboardBilling from "./routes/dashboard-billing";
 import dashboardSessions from "./routes/dashboard-sessions";
 import sessions from "./routes/sessions";
 import dashboardLimits from "./routes/dashboard-limits";
+import dashboardPermissions from "./routes/dashboard-permissions"; // fixed typo: dasboard -> dashboard
 import permissions from "./routes/permissions";
 
 // Middleware imports
 import { requireAuth } from "./middleware/require-auth";
-import dashboardPermissions from "./routes/dasboard-permissions";
 
 const app = new Hono();
 
@@ -75,8 +75,8 @@ const routes = app
     .route("/sessions", sessions)
     .route("/chat", chat)
     .route("/dashboard-limits", dashboardLimits)
-    .route("/permissions", permissions)
-    .route("/dashboard/permissions", dashboardPermissions);
+    .route("/dashboard-permissions", dashboardPermissions) // fixed: was "/dashboard/permissions"
+    .route("/permissions", permissions);
 export type AppType = typeof routes;
 
 // Export underlying lib models and execution helpers for monorepo consumption
