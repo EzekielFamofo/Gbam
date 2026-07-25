@@ -17,7 +17,7 @@ export type DashboardSessionItem = {
   status: DashboardSessionStatus;
   lastActivityAt: string | null;
   creditsUsed: number;
-  projectPath: string;
+  projectPath: string |null;
 };
 
 export type DashboardTransactionType = "usage" | "purchase" | "adjustment";

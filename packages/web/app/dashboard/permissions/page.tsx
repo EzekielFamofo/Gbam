@@ -26,8 +26,10 @@ export default async function DashboardPermissionsPage() {
       ) : dashboardError || !permissionsData ? (
         <DashboardUnavailable message={dashboardError ?? "The permissions data could not be loaded right now."} />
       ) : (
-        <DashboardPermissionsContent 
+        <DashboardPermissionsContent
           permissionConfig={permissionsData.permissionConfig}
+          protectedPaths={permissionsData.protectedPaths}
+          builtInProtectedPaths={permissionsData.builtInProtectedPaths}
           isCustom={permissionsData.isCustom}
         />
       )}

@@ -18,6 +18,7 @@ type SessionRow = {
   lastActivityAt: Date | null;
   updatedAt: Date;
   creditsUsed: number | null;
+  projectPath: string | null;
 };
 
 type MonthlyCreditsRow = {
@@ -55,6 +56,7 @@ function toSessionItem(session: SessionRow): DashboardSessionItem {
     status: normalizeStatus(session.status),
     lastActivityAt: (session.lastActivityAt ?? session.updatedAt).toISOString(),
     creditsUsed: session.creditsUsed ?? 0,
+    projectPath: session.projectPath,
   };
 }
 
@@ -105,7 +107,8 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
       "status",
       "lastActivityAt",
       "updatedAt",
-      "creditsUsed"
+      "creditsUsed",
+      "projectPath"
     FROM "Session"
     WHERE "userId" = ${userId}
     ORDER BY COALESCE("lastActivityAt", "updatedAt") DESC
