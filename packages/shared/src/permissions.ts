@@ -1,3 +1,17 @@
+import { z } from "zod";
+
+export const permissionActionSchema = z.enum(["allow", "ask", "deny"]);
+export const toolCategorySchema = z.enum(["read", "list", "glob", "grep", "edit", "bash", "webfetch", "*"]);
+
+export const permissionRuleSchema = z.object({
+  category: toolCategorySchema,
+  pattern: z.string().min(1).max(500).optional(),
+  action: permissionActionSchema,
+});
+
+export const permissionConfigSchema = z.array(permissionRuleSchema).max(100).nullable();
+
+
 export type PermissionAction = "allow" | "ask" | "deny";
 export type ToolCategory = "read" | "list" | "glob" | "grep" | "edit" | "bash" | "webfetch" | "*";
 
@@ -50,12 +64,12 @@ export function getToolCategory(toolName: string): ToolCategory | null {
 
 
 function matchPattern(input: string, pattern: string): boolean {
-  // Escape regex special chars, but turn '*' into '.*'
-  const escapeRegex = (s: string) => s.replace(/([.+?^=!:${}()|\[\]\/\\])/g, "\\$1");
-  const regexString = "^" + pattern.split("*").map(escapeRegex).join(".*") + "$";
-  return new RegExp(regexString, "i").test(input);
+  const normalizedInput = input.replace(/\\/g, "/");
+  const normalizedPattern = pattern.replace(/\\/g, "/");
+  const escapeRegex = (s: string) => s.replace(/[.+?^=!:${}()|[\]\/\\]/g, "\\$1");
+  const regexString = "^" + normalizedPattern.split("*").map(escapeRegex).join(".*") + "$";
+  return new RegExp(regexString, "i").test(normalizedInput);
 }
-
 /**
  * Pure function to evaluate a tool action against the ruleset.
  * Returns "allow", "ask", or "deny".

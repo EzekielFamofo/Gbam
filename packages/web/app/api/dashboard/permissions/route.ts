@@ -1,42 +1,26 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-
-function getInternalSecret() {
-  return process.env.GBAM_INTERNAL_WEB_SECRET ??
-    (process.env.NODE_ENV !== "production" ? "dev_gbam_dashboard_secret" : undefined);
-}
+import { fetchInternalApi } from "@/lib/dashboard/internal-api";
 
 export async function PATCH(request: Request) {
   const { userId } = await auth();
+  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
-  if (!userId) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const body = await request.json();
 
-  const internalSecret = getInternalSecret();
-  if (!internalSecret) {
+  let response: Response;
+  try {
+    response = await fetchInternalApi("/dashboard-permissions", userId, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    console.error("[api/dashboard/permissions] internal auth misconfigured:", error);
     return new NextResponse("GBAM internal dashboard secret is not configured", { status: 500 });
   }
 
-  const body = await request.json();
-  const { permissionConfig } = body;
+  if (!response.ok) return new NextResponse("Unable to save permissions right now", { status: response.status });
 
-  const apiUrl = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "https://api.gbam.dev";
-
-  const response = await fetch(`${apiUrl}/dashboard-permissions`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "x-gbam-internal-secret": internalSecret,
-      "x-gbam-user-id": userId,
-    },
-    body: JSON.stringify({ permissionConfig }),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    return new NextResponse("Unable to save permissions right now", { status: response.status });
-  }
-
-  return NextResponse.json({ success: true });
+  return NextResponse.json(await response.json());
 }

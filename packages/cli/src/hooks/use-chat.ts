@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useChat as useAiChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -19,7 +19,7 @@ import { apiClient } from "../lib/api-client";
 import { getAuth } from "../lib/auth";
 import { ensureRootAgentsFile } from "../lib/ensure-root-agents-file";
 import { getAgentsMdContext } from "../lib/local-tools";
-import { executeToolWithPermission } from "../lib/permissions-gate";
+import { createPermissionGate } from "../lib/permissions-gate";
 
 export type ChatMessageMetadata = {
   mode?: ModeType;
@@ -44,19 +44,31 @@ export function useChat(
   requestConfirmation?: (tool: string, target: string) => Promise<"yes" | "no" | "always">
 ) {
   const resolvedProjectPath = projectPath ?? process.cwd();
-  const [permissionConfig, setPermissionConfig] = useState<PermissionRule[] | null>(null);
 
-  // Fetch permission rules once on mount
-useEffect(() => {
-    apiClient.permissions.$get()
-      .then(async (res) => {
-        if (res.ok) {
-          const data = (await res.json()) as { permissionConfig: PermissionRule[] | null };
-          setPermissionConfig(data.permissionConfig);
-        }
-      })
-      .catch((err) => console.error("Failed to fetch permissions:", err));
+  // Scoped per session: switching sessions gets a fresh "always allow" cache
+  // instead of leaking overrides across unrelated sessions.
+  const executeToolWithPermission = useMemo(() => createPermissionGate(), [sessionId]);
+
+  // Held as an in-flight promise, not a nullable value, so any tool call that
+  // fires before the fetch resolves awaits the *same* request rather than
+  // reading a stale `null` and silently falling back to default rules.
+  const permissionConfigRef = useRef<Promise<PermissionRule[] | null> | undefined>(undefined);
+
+  const fetchPermissionConfig = useCallback(async () => {
+    try {
+      const res = await apiClient.permissions.$get();
+      if (!res.ok) throw new Error(`Failed to fetch permissions (${res.status})`);
+      const data = (await res.json()) as { permissionConfig: PermissionRule[] | null };
+      return data.permissionConfig;
+    } catch (err) {
+      console.error("Failed to fetch permissions, falling back to defaults:", err);
+      return null;
+    }
   }, []);
+
+  useEffect(() => {
+    permissionConfigRef.current = fetchPermissionConfig();
+  }, [fetchPermissionConfig]);
 
   const transport = useMemo(() => {
     return new DefaultChatTransport<Message>({
@@ -107,14 +119,17 @@ useEffect(() => {
 
       const confirmHandler = requestConfirmation ?? (async () => "no" as const);
 
-      void executeToolWithPermission(
-        toolCall.toolName,
-        toolCall.input,
-        mode as ModeType,
-        resolvedProjectPath,
-        permissionConfig,
-        confirmHandler
-      )
+      void (permissionConfigRef.current ?? Promise.resolve(null))
+        .then((permissionConfig) =>
+          executeToolWithPermission(
+            toolCall.toolName,
+            toolCall.input,
+            mode as ModeType,
+            resolvedProjectPath,
+            permissionConfig,
+            confirmHandler
+          )
+        )
         .then((output) =>
           chat.addToolOutput({
             tool: toolCall.toolName as keyof ChatTools,
@@ -157,6 +172,9 @@ useEffect(() => {
     error: chat.error,
     submit: async (params: { userText: string; mode: ModeType; model: SupportedChatModelId }) => {
       await ensureRootAgentsFile();
+      // Refresh before sending so a dashboard edit made mid-session is picked
+      // up on the next turn, rather than only ever being read once at mount.
+      permissionConfigRef.current = fetchPermissionConfig();
 
       return chat.sendMessage({
         text: params.userText,

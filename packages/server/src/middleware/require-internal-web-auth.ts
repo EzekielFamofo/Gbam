@@ -1,14 +1,20 @@
 import { createMiddleware } from "hono/factory";
+import { timingSafeEqual } from "node:crypto";
 
 export type InternalWebAuthEnv = {
-  Variables: {
-    userId: string;
-  };
+  Variables: { userId: string };
 };
 
 function getExpectedSecret() {
-  return process.env.GBAM_INTERNAL_WEB_SECRET ??
-    (process.env.NODE_ENV !== "production" ? "dev_gbam_dashboard_secret" : undefined);
+  if (process.env.GBAM_INTERNAL_WEB_SECRET) return process.env.GBAM_INTERNAL_WEB_SECRET;
+  if (process.env.NODE_ENV === "development") return "dev_gbam_dashboard_secret";
+  return undefined;
+}
+
+function secretsMatch(provided: string, expected: string) {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export const requireInternalWebAuth = createMiddleware<InternalWebAuthEnv>(async (c, next) => {
@@ -21,7 +27,7 @@ export const requireInternalWebAuth = createMiddleware<InternalWebAuthEnv>(async
   const providedSecret = c.req.header("x-gbam-internal-secret");
   const userId = c.req.header("x-gbam-user-id");
 
-  if (!providedSecret || providedSecret !== expectedSecret || !userId) {
+  if (!providedSecret || !userId || !secretsMatch(providedSecret, expectedSecret)) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 

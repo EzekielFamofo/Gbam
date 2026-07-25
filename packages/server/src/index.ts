@@ -75,7 +75,7 @@ const routes = app
     .route("/sessions", sessions)
     .route("/chat", chat)
     .route("/dashboard-limits", dashboardLimits)
-    .route("/dashboard-permissions", dashboardPermissions) // fixed: was "/dashboard/permissions"
+    .route("/dashboard-permissions", dashboardPermissions) 
     .route("/permissions", permissions);
 export type AppType = typeof routes;
 
