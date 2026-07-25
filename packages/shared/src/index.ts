@@ -6,7 +6,7 @@ export {
     type SupportedProvider,
     type SupportedChatModel,
     type SupportedChatModelId,
-    CostTier,
+    type CostTier,
 } from "./models";
 
 export {
