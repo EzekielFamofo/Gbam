@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Check, Crown, Rocket, Sparkles } from "lucide-react";
+import { Check, Crown, Rocket, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -11,10 +11,15 @@ import {
   getSavingsPercent,
   getTotalCredits,
   type CreditPack,
+  type CreditPackId,
 } from "@gbam/shared";
 import { CreditBar } from "./credit-bar";
 
-const TIER_ICONS = { starter: Sparkles, builder: Rocket, pro: Crown } as const;
+const TIER_ICONS: Record<CreditPackId, typeof Sparkles> = {
+  starter: Sparkles,
+  builder: Rocket,
+  pro: Crown,
+} as const;
 
 const nairaFormatter = new Intl.NumberFormat("en-NG", {
   style: "currency",
@@ -33,7 +38,7 @@ const commonFeatures = [
   "Works with every supported model (Gemini & OpenAI)",
   "Credits never expire",
   "Full CLI + dashboard sync",
-  "Per-message token-level billing, zero markups",
+  "Transparent token-level metering",
 ];
 
 export function PricingCard({
@@ -47,7 +52,7 @@ export function PricingCard({
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
-  const Icon = TIER_ICONS[pack.id];
+  const Icon = TIER_ICONS[pack.id] || Sparkles;
   const total = getTotalCredits(pack);
   const rate = getEffectiveNgnPerCredit(pack);
   const savings = getSavingsPercent(pack);
@@ -115,21 +120,30 @@ export function PricingCard({
             <span className="ml-1.5 text-sm text-muted-foreground">one-time</span>
           </div>
 
+          {/* Value Anchor Line driven by shared pack config */}
+          {pack.capacityEstimate && (
+            <div className="mt-3 flex items-center gap-1.5 text-xs text-primary/90 font-medium bg-primary/5 border border-primary/20 rounded-lg px-2.5 py-1.5">
+              <Zap className="size-3.5 shrink-0 text-primary" />
+              <span>{pack.capacityEstimate}</span>
+            </div>
+          )}
+
           {/* Credit Details */}
           <div className="mt-5 space-y-2">
             <div className="flex items-baseline justify-between text-sm">
               <span className="text-muted-foreground">
                 {pack.baseCredits.toLocaleString()} credits
+              </span>
+              <div className="flex items-center gap-1.5">
                 {pack.bonusCredits > 0 && (
-                  <span className="text-primary font-medium">
-                    {" "}
-                    + {pack.bonusCredits.toLocaleString()} bonus
+                  <span className="rounded-md bg-primary/20 px-1.5 py-0.5 text-[11px] font-bold text-primary">
+                    +{pack.bonusCredits.toLocaleString()} FREE
                   </span>
                 )}
-              </span>
-              <span className="font-semibold text-foreground">
-                {total.toLocaleString()} total
-              </span>
+                <span className="font-semibold text-foreground">
+                  {total.toLocaleString()} total
+                </span>
+              </div>
             </div>
             <CreditBar
               baseCredits={pack.baseCredits}
@@ -140,7 +154,7 @@ export function PricingCard({
               <span>{rateFormatter.format(rate)} / credit</span>
               {savings > 0 && (
                 <span className="font-medium text-primary">
-                  {savings}% better rate
+                  {savings}% lower unit rate
                 </span>
               )}
             </div>

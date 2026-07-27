@@ -158,3 +158,4 @@ This is the key interaction model to understand.
 NEVER use build commands, except when specified by the user
 Never reread Agents.md
 If user gives a task that require build mode tools while you are in plan, dont hallucinate and just ask user to switch you over to build mode.
+
