@@ -1,5 +1,6 @@
 import type { AuthenticatedEnv } from "../middleware/require-auth";
 import { createCheckoutUrl, createCustomerPortalUrl } from "../lib/polar";
+import { creditPackIdSchema, type CreditPackId } from "@gbam/shared";
 import { Hono } from "hono";
 
 const app = new Hono<AuthenticatedEnv>()
@@ -35,15 +36,24 @@ const app = new Hono<AuthenticatedEnv>()
     .post("/checkout", async (c) => {
         const userId = c.get("userId");
         
-        // Use an environment variable, falling back to your production API URL.
-        // Make sure this matches the exact domain your Hono server runs on.
+        // Extract packId from request body or query param (defaults to 'builder')
+        const body = await c.req.json().catch(() => ({}));
+        const packIdResult = creditPackIdSchema.safeParse(body.packId);
+
+        if (!packIdResult.success) {
+            return c.json({ error: "Invalid or missing packId. Must be 'starter', 'builder', or 'pro'." }, 400);
+        }
+
+        const packId: CreditPackId = packIdResult.data;
+        
         const apiUrl = process.env.API_URL || "https://api.gbam.dev";
         const successUrl = `${apiUrl}/billing/success`;
 
         return c.json({
             url: await createCheckoutUrl({ 
                 customerExternalId: userId, 
-                requestUrl: successUrl 
+                requestUrl: successUrl,
+                packId,
             }),
         });
     })

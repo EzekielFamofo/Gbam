@@ -3,7 +3,6 @@ import { z } from "zod";
 export const creditPackIdSchema = z.enum(["starter", "builder", "pro"]);
 export type CreditPackId = z.infer<typeof creditPackIdSchema>;
 
-// ...rest of the file (CreditPack, CREDIT_PACKS, getTotalCredits, etc.) unchanged
 
 export type CreditPack = {
   id: CreditPackId;

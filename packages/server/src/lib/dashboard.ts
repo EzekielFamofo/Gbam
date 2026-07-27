@@ -141,7 +141,6 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
       ON s."id" = ct."sessionId"
       AND s."userId" = ct."userId"
     WHERE ct."userId" = ${userId}
-      AND ct."type" = ${"usage"}
     ORDER BY ct."createdAt" DESC
     LIMIT 10
   `;

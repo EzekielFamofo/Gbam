@@ -4,25 +4,34 @@ import type { DashboardTransactionItem } from "@gbam/shared";
 import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
 import { EmptyState } from "./empty-state";
 
+const TRANSACTION_LABELS: Record<DashboardTransactionItem["type"], string> = {
+  usage: "Usage",
+  purchase: "Purchase",
+  adjustment: "Adjustment",
+};
+
 function getTransactionTitle(transaction: DashboardTransactionItem) {
-  return transaction.description ?? "CLI usage";
+  if (transaction.description) return transaction.description;
+  if (transaction.type === "purchase") return "Credit purchase";
+  if (transaction.type === "adjustment") return "Balance adjustment";
+  return "CLI usage";
 }
 
 export function RecentTransactions({ transactions }: { transactions: DashboardTransactionItem[] }) {
   return (
     <section className="rounded-xl border border-border/60 bg-card/40 overflow-hidden">
       <div className="border-b border-border/60 px-5 py-4 bg-muted/20">
-        <h2 className="font-display text-base font-semibold">Recent usage</h2>
+        <h2 className="font-display text-base font-semibold">Recent transactions</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Usage-only transaction history for your CLI sessions.
+          Usage and credit purchase history for your account.
         </p>
       </div>
 
       <div className="p-4">
         {transactions.length === 0 ? (
           <EmptyState
-            title="No usage yet"
-            description="When your GBAM sessions use credits, they will appear here automatically."
+            title="No transactions yet"
+            description="Credit purchases and CLI usage will appear here automatically."
           />
         ) : (
           <div className="divide-y divide-border/40 rounded-lg border border-border/50 bg-background/50 overflow-hidden">
@@ -49,7 +58,9 @@ export function RecentTransactions({ transactions }: { transactions: DashboardTr
                       {transaction.creditsDelta > 0 ? "+" : ""}
                       {formatCredits(transaction.creditsDelta)}
                     </p>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{transaction.type}</p>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      {TRANSACTION_LABELS[transaction.type]}
+                    </p>
                   </div>
                 </div>
               );
