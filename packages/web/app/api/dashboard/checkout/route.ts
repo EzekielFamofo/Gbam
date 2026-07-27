@@ -41,6 +41,8 @@ export async function GET(request: Request) {
   );
 
   if (!response.ok) {
+    const body = await response.text().catch(() => "<no body>");
+    console.error(`[api/dashboard/checkout] /dashboard-billing/checkout -> ${response.status}: ${body}`);
     return new NextResponse("Unable to start checkout right now", { status: 502 });
   }
 

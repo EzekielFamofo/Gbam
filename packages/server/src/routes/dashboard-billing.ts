@@ -16,18 +16,24 @@ const app = new Hono<InternalWebAuthEnv>()
       return c.json({ error: "Missing or invalid pack" }, 400);
     }
 
-    // Hardcode the redirect directly to the frontend dashboard.
-    // Ensure this matches your production Next.js URL.
     const frontendUrl = process.env.WEB_URL || "https://gbam.dev";
     const successUrl = `${frontendUrl}/billing/success`;
 
-    return c.json({
-      url: await createCheckoutUrl({
+    try {
+      const url = await createCheckoutUrl({
         customerExternalId: userId,
         requestUrl: successUrl,
         packId: parsedPack.data,
-      }),
-    });
+      });
+      return c.json({ url });
+    } catch (error) {
+      console.error("[dashboard-billing/checkout] createCheckoutUrl failed:", {
+        error,
+        userId,
+        packId: parsedPack.data,
+      });
+      return c.json({ error: "Failed to create checkout session" }, 502);
+    }
   });
 
 export default app;
