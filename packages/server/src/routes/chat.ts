@@ -25,7 +25,6 @@ import { db } from "@gbam/database/client";
 import { buildSystemPrompt } from "../system-prompt"; 
 import { CalculateCreditsForUsage } from "../lib/credits";
 import { recordUsageCreditTransaction } from "../lib/credits-ledger";
-import { getAvailableCreditsBalance, IngestAiUsage } from "../lib/polar";
 import { requireAuth } from "../middleware/require-auth";
 import { requireSpendLimit } from "../middleware/require-spend-limit";
 
@@ -321,24 +320,6 @@ const app = new Hono<AuthenticatedEnv>()
 
             const providerReference = `chat-message:${event.responseMessage.id}-${executionId}`;
 
-            await IngestAiUsage({
-              externalCustomerId: userId,
-              eventId: providerReference,
-              credits: billableUsage.credits
-            });
-
-            let providerBalanceCreditsAfter: number | null = null;
-            try {
-              providerBalanceCreditsAfter = await getAvailableCreditsBalance(userId);
-            } catch (balanceError) {
-              console.error("Failed to refresh provider balance after usage ingest", {
-                balanceError,
-                sessionId: id,
-                messageId: event.responseMessage.id,
-                userId,
-              });
-            }
-
             await recordUsageCreditTransaction({
               userId,
               sessionId: id,
@@ -346,11 +327,10 @@ const app = new Hono<AuthenticatedEnv>()
               credits: billableUsage.credits,
               description: session.title,
               providerReference,
-              providerBalanceCreditsAfter,
             });
 
           } catch (error) {
-            console.error("Failed to ingest Polar AI usage for chat message", {
+            console.error("Failed to record credit usage for chat message", {
               error,
               sessionId: id,
               messageId: event.responseMessage.id,

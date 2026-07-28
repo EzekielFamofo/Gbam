@@ -1,9 +1,19 @@
+import { Prisma } from "@gbam/database";
 import { db } from "@gbam/database/client";
+import {
+  FREE_TRIAL_CREDITS,
+  getCreditPackById,
+  getTotalCredits,
+  type CreditPackId,
+} from "@gbam/shared";
 
-type CreditAccountRow = {
-  balanceCredits: number | null;
+type CreditAccountRecord = {
+  userId: string;
+  balanceCredits: number;
   providerBalanceCredits: number | null;
+  balanceSource: string | null;
   lastReconciledAt: Date | null;
+  updatedAt: Date;
 };
 
 type RecordUsageCreditTransactionParams = {
@@ -13,44 +23,96 @@ type RecordUsageCreditTransactionParams = {
   credits: number;
   description?: string | null;
   providerReference: string;
-  providerBalanceCreditsAfter?: number | null;
 };
 
-function createId() {
-  return crypto.randomUUID();
+type RecordPurchaseCreditTransactionParams = {
+  userId: string;
+  packId: CreditPackId;
+  providerReference: string;
+  amountPaidNgn?: number | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+function isUniqueConstraintError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";
 }
 
+async function ensureCreditAccountRecord(tx: any, userId: string): Promise<CreditAccountRecord> {
+  const existing = await tx.creditAccount.findUnique({ where: { userId } });
+  if (existing) {
+    return existing as CreditAccountRecord;
+  }
+
+  const now = new Date();
+
+  try {
+    const created = await tx.creditAccount.create({
+      data: {
+        userId,
+        balanceCredits: FREE_TRIAL_CREDITS,
+        providerBalanceCredits: FREE_TRIAL_CREDITS,
+        balanceSource: "internal",
+        lastReconciledAt: now,
+      },
+    });
+
+    return created as CreditAccountRecord;
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    const createdByAnotherRequest = await tx.creditAccount.findUnique({ where: { userId } });
+    if (!createdByAnotherRequest) {
+      throw error;
+    }
+
+    return createdByAnotherRequest as CreditAccountRecord;
+  }
+}
+
+function toJsonValue(value: Record<string, unknown> | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  return value as Prisma.InputJsonValue;
+}
+
+export async function ensureCreditAccount(userId: string) {
+  return db.$transaction(async (tx) => ensureCreditAccountRecord(tx, userId));
+}
+
+export async function getAvailableCreditsBalance(userId: string) {
+  const account = await ensureCreditAccount(userId);
+  return account.balanceCredits;
+}
+
+export async function getCreditAccountSnapshot(userId: string) {
+  return ensureCreditAccount(userId);
+}
+
+// Backwards-compatible helper kept for legacy call sites. It now mirrors the
+// local ledger balance instead of treating an external provider as source-of-truth.
 export async function syncProviderCreditsBalance(userId: string, providerBalanceCredits: number) {
   const now = new Date();
 
-  await db.$executeRaw`
-    INSERT INTO "CreditAccount" (
-      "id",
-      "userId",
-      "balanceCredits",
-      "providerBalanceCredits",
-      "balanceSource",
-      "lastReconciledAt",
-      "createdAt",
-      "updatedAt"
-    )
-    VALUES (
-      ${createId()},
-      ${userId},
-      ${providerBalanceCredits},
-      ${providerBalanceCredits},
-      ${"polar"},
-      ${now},
-      ${now},
-      ${now}
-    )
-    ON CONFLICT ("userId") DO UPDATE SET
-      "balanceCredits" = ${providerBalanceCredits},
-      "providerBalanceCredits" = ${providerBalanceCredits},
-      "balanceSource" = ${"polar"},
-      "lastReconciledAt" = ${now},
-      "updatedAt" = ${now}
-  `;
+  await db.creditAccount.upsert({
+    where: { userId },
+    create: {
+      userId,
+      balanceCredits: providerBalanceCredits,
+      providerBalanceCredits,
+      balanceSource: "internal",
+      lastReconciledAt: now,
+    },
+    update: {
+      balanceCredits: providerBalanceCredits,
+      providerBalanceCredits,
+      balanceSource: "internal",
+      lastReconciledAt: now,
+    },
+  });
 }
 
 export async function recordUsageCreditTransaction({
@@ -60,109 +122,125 @@ export async function recordUsageCreditTransaction({
   credits,
   description,
   providerReference,
-  providerBalanceCreditsAfter,
 }: RecordUsageCreditTransactionParams) {
+  if (credits <= 0) {
+    return;
+  }
+
   const ledgerKey = `usage:${providerReference}`;
   const now = new Date();
 
-  await db.$transaction(async (tx) => {
-    // 1. Deduplication Guard
-    const existing = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT "id"
-      FROM "CreditTransaction"
-      WHERE "ledgerKey" = ${ledgerKey}
-      LIMIT 1
-    `;
+  try {
+    await db.$transaction(async (tx) => {
+      const account = await ensureCreditAccountRecord(tx, userId);
+      const nextBalance = Math.max(0, account.balanceCredits - credits);
 
-    if (existing.length > 0) {
-      return; 
+      await tx.creditAccount.update({
+        where: { userId },
+        data: {
+          balanceCredits: nextBalance,
+          providerBalanceCredits: nextBalance,
+          balanceSource: account.balanceSource ?? "internal",
+          lastReconciledAt: now,
+        },
+      });
+
+      await tx.creditTransaction.create({
+        data: {
+          userId,
+          type: "usage",
+          creditsDelta: -credits,
+          balanceAfter: nextBalance,
+          sessionId,
+          messageId,
+          provider: "internal",
+          providerReference,
+          ledgerKey,
+          description: description ?? null,
+          metadata: undefined,
+          createdAt: now,
+        },
+      });
+
+      await tx.session.updateMany({
+        where: { id: sessionId, userId },
+        data: {
+          creditsUsed: {
+            increment: credits,
+          },
+          updatedAt: now,
+        },
+      });
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return;
     }
 
-    const accountRows = await tx.$queryRaw<CreditAccountRow[]>`
-      SELECT "balanceCredits", "providerBalanceCredits", "lastReconciledAt"
-      FROM "CreditAccount"
-      WHERE "userId" = ${userId}
-      LIMIT 1
-    `;
+    throw error;
+  }
+}
 
-    const currentAccount = accountRows[0];
-    const nextBalance =
-      providerBalanceCreditsAfter ?? Math.max(0, (currentAccount?.balanceCredits ?? 0) - credits);
-    const nextProviderBalance =
-      providerBalanceCreditsAfter ?? currentAccount?.providerBalanceCredits ?? null;
-    const nextLastReconciledAt =
-      providerBalanceCreditsAfter != null ? now : currentAccount?.lastReconciledAt ?? null;
+export async function recordPurchaseCreditTransaction({
+  userId,
+  packId,
+  providerReference,
+  amountPaidNgn,
+  metadata,
+}: RecordPurchaseCreditTransactionParams) {
+  const pack = getCreditPackById(packId);
+  if (!pack) {
+    throw new Error(`Unknown credit pack: ${packId}`);
+  }
 
-    // 2. Update CreditAccount
-    await tx.$executeRaw`
-      INSERT INTO "CreditAccount" (
-        "id",
-        "userId",
-        "balanceCredits",
-        "providerBalanceCredits",
-        "balanceSource",
-        "lastReconciledAt",
-        "createdAt",
-        "updatedAt"
-      )
-      VALUES (
-        ${createId()},
-        ${userId},
-        ${nextBalance},
-        ${nextProviderBalance},
-        ${"polar"},
-        ${nextLastReconciledAt},
-        ${now},
-        ${now}
-      )
-      ON CONFLICT ("userId") DO UPDATE SET
-        "balanceCredits" = ${nextBalance},
-        "providerBalanceCredits" = ${nextProviderBalance},
-        "balanceSource" = ${"polar"},
-        "lastReconciledAt" = ${nextLastReconciledAt},
-        "updatedAt" = ${now}
-    `;
-
-    // 3. Insert CreditTransaction
-    await tx.$executeRaw`
-      INSERT INTO "CreditTransaction" (
-        "id",
-        "userId",
-        "type",
-        "creditsDelta",
-        "balanceAfter",
-        "sessionId",
-        "messageId",
-        "provider",
-        "providerReference",
-        "ledgerKey",
-        "description",
-        "metadata",
-        "createdAt"
-      )
-      VALUES (
-        ${createId()},
-        ${userId},
-        ${"usage"},
-        ${-credits},
-        ${nextBalance},
-        ${sessionId},
-        ${messageId},
-        ${"polar"},
-        ${providerReference},
-        ${ledgerKey},
-        ${description ?? null},
-        ${null},
-        ${now}
-      )
-    `;
-
-    // 4. Safely Increment Session creditsUsed
-    await tx.$executeRaw`
-      UPDATE "Session"
-      SET "creditsUsed" = COALESCE("creditsUsed", 0) + ${credits},
-          "updatedAt" = ${now}
-      WHERE "id" = ${sessionId} AND "userId" = ${userId}
-    `;
+  const creditsAdded = getTotalCredits(pack);
+  const ledgerKey = `purchase:paystack:${providerReference}`;
+  const now = new Date();
+  const transactionMetadata = toJsonValue({
+    packId,
+    packLabel: pack.label,
+    baseCredits: pack.baseCredits,
+    bonusCredits: pack.bonusCredits,
+    totalCredits: creditsAdded,
+    amountPaidNgn: amountPaidNgn ?? pack.retailPriceNgn,
+    ...(metadata ?? {}),
   });
+
+  try {
+    await db.$transaction(async (tx) => {
+      const account = await ensureCreditAccountRecord(tx, userId);
+      const nextBalance = account.balanceCredits + creditsAdded;
+
+      await tx.creditAccount.update({
+        where: { userId },
+        data: {
+          balanceCredits: nextBalance,
+          providerBalanceCredits: nextBalance,
+          balanceSource: "paystack",
+          lastReconciledAt: now,
+        },
+      });
+
+      await tx.creditTransaction.create({
+        data: {
+          userId,
+          type: "purchase",
+          creditsDelta: creditsAdded,
+          balanceAfter: nextBalance,
+          provider: "paystack",
+          providerReference,
+          ledgerKey,
+          description: `${pack.label} credit pack purchase`,
+          metadata: transactionMetadata,
+          createdAt: now,
+        },
+      });
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return;
+    }
+
+    throw error;
+  }
 }

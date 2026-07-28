@@ -29,3 +29,16 @@ export async function authenticateOAuthRequest(request: Request) {
 
     return { userId: auth.userId };
 }
+
+export async function getUserPrimaryEmailAddress(userId: string) {
+    const user = await clerkClient.users.getUser(userId);
+    const primaryEmail = user.emailAddresses.find(
+        (email) => email.id === user.primaryEmailAddressId,
+    ) ?? user.emailAddresses[0];
+
+    if (!primaryEmail?.emailAddress) {
+        throw new Error(`No email address found for user ${userId}`);
+    }
+
+    return primaryEmail.emailAddress;
+}

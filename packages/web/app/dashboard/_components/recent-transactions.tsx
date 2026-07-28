@@ -8,12 +8,14 @@ const TRANSACTION_LABELS: Record<DashboardTransactionItem["type"], string> = {
   usage: "Usage",
   purchase: "Purchase",
   adjustment: "Adjustment",
+  sync: "Sync",
 };
 
 function getTransactionTitle(transaction: DashboardTransactionItem) {
   if (transaction.description) return transaction.description;
   if (transaction.type === "purchase") return "Credit purchase";
   if (transaction.type === "adjustment") return "Balance adjustment";
+  if (transaction.type === "sync") return "Balance sync";
   return "CLI usage";
 }
 

@@ -20,7 +20,7 @@ export type DashboardSessionItem = {
   projectPath: string |null;
 };
 
-export type DashboardTransactionType = "usage" | "purchase" | "adjustment";
+export type DashboardTransactionType = "usage" | "purchase" | "adjustment" | "sync";
 
 export type DashboardTransactionItem = {
   id: string;

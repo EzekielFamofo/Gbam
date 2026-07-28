@@ -48,6 +48,10 @@ export const CREDIT_PACKS: CreditPack[] = [
   },
 ];
 
+export function getCreditPackById(packId: CreditPackId): CreditPack | undefined {
+  return CREDIT_PACKS.find((pack) => pack.id === packId);
+}
+
 export function getTotalCredits(pack: CreditPack): number {
   return pack.baseCredits + pack.bonusCredits;
 }

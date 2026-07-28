@@ -6,8 +6,7 @@ import {
   type DashboardTransactionItem,
   type ModeType,
 } from "@gbam/shared";
-import { getAvailableCreditsBalance } from "./polar";
-import { syncProviderCreditsBalance } from "./credits-ledger";
+import { getCreditAccountSnapshot } from "./credits-ledger";
 
 type SessionRow = {
   id: string;
@@ -32,11 +31,6 @@ type TransactionRow = {
   description: string | null;
   sessionId: string | null;
   createdAt: Date;
-};
-
-type CreditAccountSnapshotRow = {
-  providerBalanceCredits: number | null;
-  lastReconciledAt: Date | null;
 };
 
 function normalizeStatus(value: string | null): DashboardSessionStatus {
@@ -72,78 +66,49 @@ function toTransactionItem(transaction: TransactionRow): DashboardTransactionIte
 }
 
 export async function getDashboardData(userId: string): Promise<DashboardResponse> {
-  let creditsBalance = 0;
-  let lastCreditsSyncedAt: string | null = null;
-
-  try {
-    creditsBalance = await getAvailableCreditsBalance(userId);
-    await syncProviderCreditsBalance(userId, creditsBalance);
-    lastCreditsSyncedAt = new Date().toISOString();
-  } catch (error) {
-    console.error("Failed to fetch live credits balance for dashboard", { error, userId });
-  }
-
-  if (lastCreditsSyncedAt == null) {
-    const accountRows = await db.$queryRaw<CreditAccountSnapshotRow[]>`
-      SELECT "providerBalanceCredits", "lastReconciledAt"
-      FROM "CreditAccount"
-      WHERE "userId" = ${userId}
-      LIMIT 1
-    `;
-
-    const account = accountRows[0];
-    if (account) {
-      creditsBalance = account.providerBalanceCredits ?? creditsBalance;
-      lastCreditsSyncedAt = account.lastReconciledAt?.toISOString() ?? null;
-    }
-  }
-
-  const sessions = await db.$queryRaw<SessionRow[]>`
-    SELECT
-      "id",
-      "title",
-      "lastMode",
-      "lastModel",
-      "status",
-      "lastActivityAt",
-      "updatedAt",
-      "creditsUsed",
-      "projectPath"
-    FROM "Session"
-    WHERE "userId" = ${userId}
-    ORDER BY COALESCE("lastActivityAt", "updatedAt") DESC
-    LIMIT 10
-  `;
-
   const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
 
-  const monthlyCreditsRows = await db.$queryRaw<MonthlyCreditsRow[]>`
-    SELECT COALESCE(SUM(ABS("creditsDelta")), 0) AS "total"
-    FROM "CreditTransaction"
-    WHERE "userId" = ${userId}
-      AND "type" = ${"usage"}
-      AND "createdAt" >= ${monthStart}
-  `;
-
-  const transactions = await db.$queryRaw<TransactionRow[]>`
-    SELECT
-      ct."id",
-      ct."type",
-      ct."creditsDelta",
-      ct."description",
-      ct."sessionId",
-      s."title" AS "sessionTitle",
-      ct."createdAt"
-    FROM "CreditTransaction" ct
-    LEFT JOIN "Session" s
-      ON s."id" = ct."sessionId"
-      AND s."userId" = ct."userId"
-    WHERE ct."userId" = ${userId}
-    ORDER BY ct."createdAt" DESC
-    LIMIT 10
-  `;
+  const [account, sessions, monthlyCreditsRows, transactions] = await Promise.all([
+    getCreditAccountSnapshot(userId),
+    db.$queryRaw<SessionRow[]>`
+      SELECT
+        "id",
+        "title",
+        "lastMode",
+        "lastModel",
+        "status",
+        "lastActivityAt",
+        "updatedAt",
+        "creditsUsed",
+        "projectPath"
+      FROM "Session"
+      WHERE "userId" = ${userId}
+      ORDER BY COALESCE("lastActivityAt", "updatedAt") DESC
+      LIMIT 10
+    `,
+    db.$queryRaw<MonthlyCreditsRow[]>`
+      SELECT COALESCE(SUM(ABS("creditsDelta")), 0) AS "total"
+      FROM "CreditTransaction"
+      WHERE "userId" = ${userId}
+        AND "type" = ${"usage"}
+        AND "createdAt" >= ${monthStart}
+    `,
+    db.$queryRaw<TransactionRow[]>`
+      SELECT
+        "id",
+        "type",
+        "creditsDelta",
+        "description",
+        "sessionId",
+        "createdAt"
+      FROM "CreditTransaction"
+      WHERE "userId" = ${userId}
+      ORDER BY "createdAt" DESC
+      LIMIT 10
+    `,
+  ]);
 
   const sessionItems = sessions.map(toSessionItem);
   const transactionItems = transactions.map(toTransactionItem);
@@ -151,10 +116,10 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
 
   return {
     summary: {
-      creditsBalance,
+      creditsBalance: account.balanceCredits,
       creditsUsedThisMonth: monthlyTotal,
       lastCliActivityAt: sessionItems[0]?.lastActivityAt ?? null,
-      lastCreditsSyncedAt,
+      lastCreditsSyncedAt: account.lastReconciledAt?.toISOString() ?? account.updatedAt.toISOString(),
     },
     sessions: sessionItems,
     transactions: transactionItems,
