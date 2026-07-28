@@ -36,7 +36,7 @@ export default async function BillingSuccessPage({ searchParams }: PageProps) {
           Payment received
         </h1>
         <p className="text-gray-400 leading-relaxed">
-          We’ve received your payment and will credit your account as soon as Paystack confirms the charge.
+          We’ve received your payment. Your credits are added after Paystack’s webhook confirms the charge.
         </p>
         {pack ? (
           <p className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
