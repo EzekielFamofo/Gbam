@@ -1,6 +1,7 @@
 // permissions-gate.ts
 import { resolvePermission, getToolCategory, type UserPermissionConfig, type ModeType } from "@gbam/shared";
 import { executeLocalTool } from "./local-tools";
+import type { UndoExecutionContext } from "./undo-stack";
 
 function extractTarget(toolName: string, input: any): string {
   if (!input) return "";
@@ -17,6 +18,7 @@ export function createPermissionGate() {
     input: unknown,
     mode: ModeType,
     resolvedProjectPath: string,
+    undoContext: UndoExecutionContext,
     permissionConfig: UserPermissionConfig | null, 
     requestConfirmation: (tool: string, target: string) => Promise<"yes" | "no" | "always">
   ) {
@@ -26,7 +28,7 @@ export function createPermissionGate() {
     const actionKey = category ? `${category}:${target}` : `unknown:${toolName}`;
 
     if (sessionAllowedOverrides.has(actionKey)) {
-      return executeLocalTool(toolName, input, mode, resolvedProjectPath);
+      return executeLocalTool(toolName, input, mode, resolvedProjectPath, undoContext);
     }
 
     const action = resolvePermission(toolName, target, permissionConfig);
@@ -45,6 +47,6 @@ export function createPermissionGate() {
       }
     }
 
-    return executeLocalTool(toolName, input, mode, resolvedProjectPath);
+    return executeLocalTool(toolName, input, mode, resolvedProjectPath, undoContext);
   };
 }

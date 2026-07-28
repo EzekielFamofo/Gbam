@@ -73,6 +73,7 @@ export function NewSession() {
                     throw new Error(await getErrorMessage(res))
                 }
                 const session = await res.json();
+                toast.hide();
                 navigate(
                     `/sessions/${session.id}`,
                     { replace: true, state: {session, initialPrompt: state}}

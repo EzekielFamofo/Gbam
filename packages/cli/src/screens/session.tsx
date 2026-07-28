@@ -19,6 +19,7 @@ import {
 import { useKeyboardLayer } from "src/providers/keyboard-layer";
 import { useKeyboard } from "@opentui/react";
 import { usePromptConfig } from "src/providers/prompt-config";
+import { registerUndoCommandHandler, undoLastTurn } from "src/lib/undo-stack";
 
 type SessionData = InferResponseType<(typeof apiClient.sessions)[":id"]["$get"], 200>;
 
@@ -39,6 +40,13 @@ function resolveSupportedModel(model: string | null | undefined): SupportedChatM
   return match ? (model as SupportedChatModelId) : null;
 }
 
+type PendingToolAction = {
+  id: string;
+  tool: string;
+  target: string;
+  resolve: (choice: "yes" | "no" | "always") => void;
+};
+
 function SessionChat({
   session,
   initialPrompt,
@@ -54,22 +62,24 @@ function SessionChat({
   const dialog = useDialog();
   const hasSubmittedInitialPromptRef = useRef(false);
 
-  // 1. State to manage active permission confirmation prompts
-  const [pendingToolAction, setPendingToolAction] = useState<{
-    tool: string;
-    target: string;
-    resolve: (choice: "yes" | "no" | "always") => void;
-  } | null>(null);
+  // Queue of pending permission prompts, not a single slot. Multiple tool
+  // calls in one turn (e.g. several editFile calls) can each request
+  // confirmation before the user answers the first - a single slot would let
+  // each new request silently overwrite the last, orphaning every promise but
+  // the final one and leaving those tool calls stuck "running" forever.
+  const [pendingToolActions, setPendingToolActions] = useState<PendingToolAction[]>([]);
 
-  // 2. Define the confirmation handler for useChat
   const handleRequestConfirmation = useCallback((tool: string, target: string) => {
     return new Promise<"yes" | "no" | "always">((resolve) => {
-      setPendingToolAction({ tool, target, resolve });
+      const id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${tool}:${target}:${Date.now()}:${Math.random()}`;
+      setPendingToolActions((prev) => [...prev, { id, tool, target, resolve }]);
     });
   }, []);
 
-  // 3. Pass the confirmation handler into useChat
-  const { messages, status, submit, abort, interrupt, error } = useChat(
+  const { messages, status, submit, abort, interrupt, error, isExecutingTools } = useChat(
     session.id, 
     initialMessages, 
     undefined, 
@@ -77,10 +87,13 @@ function SessionChat({
   );
 
   useEffect(() => {
+    const unregisterUndoCommand = registerUndoCommandHandler(() => undoLastTurn(session.id));
+
     return () => {
+      unregisterUndoCommand();
       void abort();
     };
-  }, [abort]);
+  }, [abort, session.id]);
 
   useKeyboard((key) => {
     if (key.name === "escape" && isTopLayer("base") && status === "streaming") {
@@ -149,19 +162,29 @@ function SessionChat({
     [submit, mode, model],
   );
 
-  const loading = status === "submitted" || status === "streaming";
+  // Includes isExecutingTools so the UI stays "busy" for the full lifetime of
+  // a tool call - running a command, waiting on a permission prompt - not
+  // just while the model itself is streaming text.
+  const loading = status === "submitted" || status === "streaming" || isExecutingTools;
+
+  const currentPendingToolAction = pendingToolActions[0] ?? null;
 
   return (
     <SessionShell 
       onSubmit={handleSubmit} 
       loading={loading} 
-      interruptible={loading}
-      pendingToolAction={pendingToolAction}
+      interruptible={status === "streaming"}
+      pendingToolAction={
+        currentPendingToolAction
+          ? { tool: currentPendingToolAction.tool, target: currentPendingToolAction.target }
+          : null
+      }
       onPermissionSelect={(choice) => {
-        if (pendingToolAction) {
-          pendingToolAction.resolve(choice);
-          setPendingToolAction(null);
-        }
+        setPendingToolActions((prev) => {
+          const [current, ...rest] = prev;
+          current?.resolve(choice);
+          return rest;
+        });
       }}
     >
       {messages.map((message) => (
@@ -262,7 +285,7 @@ export function Session() {
       key={session.id}
       session={session}
       initialPrompt={prefetched?.initialPrompt}
-      onRenameSession={handleRenameSession}
+      onRenameSession ={handleRenameSession}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat as useAiChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -13,7 +13,7 @@ import {
   type ModeType,
   type SupportedChatModelId,
   type ToolContracts,
-  normalizeStoredPermissionConfig, 
+  normalizeStoredPermissionConfig,
   type UserPermissionConfig
 } from "@gbam/shared";
 import { apiClient } from "../lib/api-client";
@@ -46,14 +46,15 @@ export function useChat(
 ) {
   const resolvedProjectPath = projectPath ?? process.cwd();
 
-  // Scoped per session: switching sessions gets a fresh "always allow" cache
-  // instead of leaking overrides across unrelated sessions.
   const executeToolWithPermission = useMemo(() => createPermissionGate(), [sessionId]);
 
-  // Held as an in-flight promise, not a nullable value, so any tool call that
-  // fires before the fetch resolves awaits the *same* request rather than
-  // reading a stale `null` and silently falling back to default rules.
   const permissionConfigRef = useRef<Promise<UserPermissionConfig | null> | undefined>(undefined);
+
+  // Tracks tool calls (bash execution, permission prompts, local edits) still
+  // in flight. `chat.status` alone goes back to a non-streaming state the
+  // moment the model stops emitting text - it has no idea local work is still
+  // running after that - so without this, "Working..." disappears mid-tool-call.
+  const [pendingToolCallCount, setPendingToolCallCount] = useState(0);
 
   const fetchPermissionConfig = useCallback(async () => {
     try {
@@ -120,6 +121,8 @@ export function useChat(
 
       const confirmHandler = requestConfirmation ?? (async () => "no" as const);
 
+      setPendingToolCallCount((count) => count + 1);
+
       void (permissionConfigRef.current ?? Promise.resolve(null))
         .then((permissionConfig) =>
           executeToolWithPermission(
@@ -127,6 +130,7 @@ export function useChat(
             toolCall.input,
             mode as ModeType,
             resolvedProjectPath,
+            { sessionId, turnId: toolCall.toolCallId },
             permissionConfig,
             confirmHandler
           )
@@ -146,7 +150,10 @@ export function useChat(
               error: error instanceof Error ? error.message : String(error),
             },
           }),
-        );
+        )
+        .finally(() => {
+          setPendingToolCallCount((count) => Math.max(0, count - 1));
+        });
     },
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
@@ -171,10 +178,12 @@ export function useChat(
     messages: chat.messages,
     status: chat.status,
     error: chat.error,
+    // True while any local tool work is in progress - executing a command,
+    // waiting on a permission prompt - independent of whether the model is
+    // currently streaming text.
+    isExecutingTools: pendingToolCallCount > 0,
     submit: async (params: { userText: string; mode: ModeType; model: SupportedChatModelId }) => {
       await ensureRootAgentsFile();
-      // Refresh before sending so a dashboard edit made mid-session is picked
-      // up on the next turn, rather than only ever being read once at mount.
       permissionConfigRef.current = fetchPermissionConfig();
 
       return chat.sendMessage({

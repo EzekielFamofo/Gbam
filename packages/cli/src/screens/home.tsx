@@ -1,13 +1,22 @@
-import { useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useCallback, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Header } from "../components/header";
 import { InputBar } from "../components/input-bar";
 import { usePromptConfig } from "src/providers/prompt-config";
+import { useToast } from "src/providers/toast";
 import { TextAttributes } from "@opentui/core";
 
 export function Home() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const toast = useToast();
     const { mode, model } = usePromptConfig();
+
+    useEffect(() => {
+        if ((location.state as { dismissToastOnOpen?: boolean } | null)?.dismissToastOnOpen === true) {
+            toast.hide();
+        }
+    }, [location.state, toast]);
 
     const handleSubmit = useCallback(
         (text: string) => {

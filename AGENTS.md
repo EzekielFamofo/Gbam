@@ -159,3 +159,4 @@ NEVER use build commands, except when specified by the user
 Never reread Agents.md
 If user gives a task that require build mode tools while you are in plan, dont hallucinate and just ask user to switch you over to build mode.
 
+NEVER REREAD ANY FILES,ID YOU HAVE ALREADY READ THEM BEFORE, EXCEPT IF EDITS HAVE BEEN MADE.

@@ -3,6 +3,7 @@ import { SessionsDialogContent, AgentsDialogContent, ModelsDialogContent } from 
 import type {Command} from "./type"
 import { performLogin } from "src/lib/oauth";
 import { clearAuth } from "src/lib/auth";
+import { runUndoCommand } from "src/lib/undo-stack";
 import open from "open";
 // defines the commands shown and their action, name and description are used in index.tsx
 // Portions of this file are derived from opencode (c) 2025 opencode under the MIT License.
@@ -15,8 +16,14 @@ export const COMMANDS: Command[] = [
         description: "Start a new conversation",
         value: "/new",
         action: (ctx) => {
-            ctx.navigate("/")
+            const isNewSessionOpen = ctx.currentPath === "/" || ctx.currentPath === "/sessions/new";
+
+            if (isNewSessionOpen) {
+                return;
+            }
+
             ctx.toast.show({message: "Starting new conversation...", variant: "success"})
+            ctx.navigate("/", { state: { dismissToastOnOpen: true } })
         },
     },
     {
@@ -50,6 +57,18 @@ export const COMMANDS: Command[] = [
                 title: "Sessions",
                 children: <SessionsDialogContent />
             })
+        },
+    },
+    {
+        name: "undo",
+        description: "Undo the last file changes from the current session",
+        value: "/undo",
+        action: async (ctx) => {
+            const result = await runUndoCommand();
+            ctx.toast.show({
+                variant: result.success ? "success" : "error",
+                message: result.message,
+            });
         },
     },
     {

@@ -4,6 +4,7 @@ import { useTerminalDimensions } from "@opentui/react";
 // This  is to allow any component in the app to trigger a toast notification without having to type everything manually in several places
 export type ToastContextValue = {
     show: (options:ToastOptions) => void; //context value only contains a single function called show
+    hide: () => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -47,7 +48,12 @@ export function ToastProvider({children}: ToastProviderProps) {
         }, duration).unref();
     }, [clearCurrentTimeout]);
 
-    const value = useMemo(() => ({ show }), [show]);
+    const hide = useCallback(() => {
+        clearCurrentTimeout();
+        setCurrentToast(null);
+    }, [clearCurrentTimeout]);
+
+    const value = useMemo(() => ({ show, hide }), [show, hide]);
 
     return ( // wraps the entire code so as to allow the toast context to be called  in any child component in the application
         <ToastContext.Provider value={value}>

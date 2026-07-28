@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "path";
 import { toolInputSchemas, Mode, type ModeType } from "@gbam/shared";
+import { prepareUndoSnapshot, recordUndoSnapshot, type UndoExecutionContext } from "./undo-stack";
 import { z } from "zod";
 
 const MAX_FILE_SIZE = 40_000;     
@@ -61,6 +62,7 @@ export async function executeLocalTool(
     input: unknown,
     mode: ModeType,
     projectPath?: string,
+    undoContext?: UndoExecutionContext,
 ) {
     // Include "webfetch" in PLAN mode since web fetching is a read-only research/documentation activity
     if (mode === Mode.PLAN && !["readFile", "listDirectory", "glob", "grep", "webfetch"].includes(toolName)) {
@@ -228,9 +230,15 @@ export async function executeLocalTool(
         }
         case "writeFile": {
             const { path, content } = toolInputSchemas.writeFile.parse(input);
+            const snapshot = await prepareUndoSnapshot("writeFile", { path, content }, projectPath);
             const { cwd, resolved } = resolveInsideCwd(path, projectPath);
             await mkdir(dirname(resolved), { recursive: true });
             await writeFile(resolved, content, "utf-8");
+
+            if (snapshot && undoContext) {
+                await recordUndoSnapshot(undoContext.sessionId, undoContext.turnId, snapshot);
+            }
+
             return {
                 success: true as const,
                 path: relative(cwd, resolved),
@@ -239,6 +247,7 @@ export async function executeLocalTool(
         }
         case "editFile": {
             const { path, oldString, newString } = toolInputSchemas.editFile.parse(input);
+            const snapshot = await prepareUndoSnapshot("editFile", { path, oldString, newString }, projectPath);
             const { cwd, resolved } = resolveInsideCwd(path, projectPath);
             const content = await readFile(resolved, "utf-8");
             const occurrences = content.split(oldString).length - 1;
@@ -247,10 +256,15 @@ export async function executeLocalTool(
             if (occurrences > 1) throw new Error(`oldString is ambiguous; found ${occurrences} matches`);
 
             await writeFile(resolved, content.replace(oldString, newString), "utf-8");
+
+            if (snapshot && undoContext) {
+                await recordUndoSnapshot(undoContext.sessionId, undoContext.turnId, snapshot);
+            }
+
             return { success: true as const, path: relative(cwd, resolved) };
         }
-        // ✅ ADDED: Web fetch tool execution handler
-        // ✅ FIXED: Use toolInputSchemas.webfetch to parse the input safely without .url() validation constraints
+
+        
 case "webfetch": {
             const { url } = toolInputSchemas.webfetch.parse(input);
             try {

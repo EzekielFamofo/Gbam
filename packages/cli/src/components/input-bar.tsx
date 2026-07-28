@@ -8,7 +8,7 @@ import type {Command} from "./command-menu/type";
 import { useToast } from "../providers/toast";
 import { useKeyboardLayer } from "../providers/keyboard-layer";
 import { useDialog } from "../providers/dialog";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { usePromptConfig } from "src/providers/prompt-config";
 import { Mode } from "@gbam/shared";
 import {isAbsolute, relative, resolve } from "node:path";
@@ -253,6 +253,7 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
     const mentionScrollRef = useRef<ScrollBoxRenderable>(null);
 
     const navigate = useNavigate()
+    const location = useLocation();
     const renderer = useRenderer();
     const toast = useToast();
     const dialog = useDialog();
@@ -371,6 +372,7 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
                 toast,
                 dialog,
                 navigate,
+                currentPath: location.pathname,
                 mode,
                 setMode,
                 setModel,
@@ -378,7 +380,7 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
         } else {//if it doesnt have an action insert command and add a blank space
             textarea.insertText(command.value + " ")
         }
-    }, [renderer, toast, dialog, navigate, mode, setMode, setModel]);
+    }, [renderer, toast, dialog, navigate, location.pathname, mode, setMode, setModel]);
 
     const handleCommandExecute = useCallback ( // executes the command when necessary 
         (index: number) => {
@@ -529,4 +531,4 @@ export function InputBar ({onSubmit, disabled = false}: Props) {
             </box>
         </box>
     )
-} 
+}

@@ -7,7 +7,8 @@ export type CommandContext = {
     exit: () => void;
     toast: ToastContextValue;
     dialog: DialogContextValue;
-    navigate:(path: string) => void;
+    navigate:(path: string, options?: { state?: unknown; replace?: boolean }) => void;
+    currentPath: string;
     mode: ModeType
     setMode: (mode: ModeType) => void;
     setModel: (model: SupportedChatModelId) => void;
