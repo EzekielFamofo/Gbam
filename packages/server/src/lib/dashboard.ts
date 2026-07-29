@@ -31,6 +31,12 @@ type TransactionRow = {
   description: string | null;
   sessionId: string | null;
   createdAt: Date;
+  expiresAt: Date | null;
+};
+
+type SoonestExpiringRow = {
+  remainingCredits: number;
+  expiresAt: Date;
 };
 
 function normalizeStatus(value: string | null): DashboardSessionStatus {
@@ -62,6 +68,7 @@ function toTransactionItem(transaction: TransactionRow): DashboardTransactionIte
     description: transaction.description,
     sessionId: transaction.sessionId,
     createdAt: transaction.createdAt.toISOString(),
+    expiresAt: transaction.expiresAt?.toISOString() ?? null,
   };
 }
 
@@ -70,7 +77,7 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
 
-  const [account, sessions, monthlyCreditsRows, transactions] = await Promise.all([
+  const [account, sessions, monthlyCreditsRows, transactions, soonestExpiringRows] = await Promise.all([
     getCreditAccountSnapshot(userId),
     db.$queryRaw<SessionRow[]>`
       SELECT
@@ -102,17 +109,29 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
         "creditsDelta",
         "description",
         "sessionId",
-        "createdAt"
+        "createdAt",
+        "expiresAt"
       FROM "CreditTransaction"
       WHERE "userId" = ${userId}
       ORDER BY "createdAt" DESC
       LIMIT 10
+    `,
+    db.$queryRaw<SoonestExpiringRow[]>`
+      SELECT "remainingCredits", "expiresAt"
+      FROM "CreditTransaction"
+      WHERE "userId" = ${userId}
+        AND "remainingCredits" > 0
+        AND "expiresAt" IS NOT NULL
+        AND "expiresAt" > now()
+      ORDER BY "expiresAt" ASC
+      LIMIT 1
     `,
   ]);
 
   const sessionItems = sessions.map(toSessionItem);
   const transactionItems = transactions.map(toTransactionItem);
   const monthlyTotal = Number(monthlyCreditsRows[0]?.total ?? 0);
+  const soonestExpiring = soonestExpiringRows[0];
 
   return {
     summary: {
@@ -120,6 +139,9 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
       creditsUsedThisMonth: monthlyTotal,
       lastCliActivityAt: sessionItems[0]?.lastActivityAt ?? null,
       lastCreditsSyncedAt: account.lastReconciledAt?.toISOString() ?? account.updatedAt.toISOString(),
+      soonestExpiringBatch: soonestExpiring
+        ? { credits: soonestExpiring.remainingCredits, expiresAt: soonestExpiring.expiresAt.toISOString() }
+        : null,
     },
     sessions: sessionItems,
     transactions: transactionItems,

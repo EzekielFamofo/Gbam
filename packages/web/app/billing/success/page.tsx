@@ -36,7 +36,7 @@ export default async function BillingSuccessPage({ searchParams }: PageProps) {
           Payment received
         </h1>
         <p className="text-gray-400 leading-relaxed">
-          We’ve received your payment. Your credits are added after Paystack’s webhook confirms the charge.
+          Your checkout has completed. Your credits should appear in your dashboard shortly after payment verification.
         </p>
         {pack ? (
           <p className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
@@ -45,7 +45,7 @@ export default async function BillingSuccessPage({ searchParams }: PageProps) {
         ) : null}
         <p className="text-gray-500 mt-4 mb-8 text-sm leading-relaxed">
           {isCliFlow
-            ? "You can return to the GBAM terminal now. If your balance doesn’t update immediately, give the webhook a few seconds to land."
+            ? "You can return to the GBAM terminal now. If your balance doesn’t update immediately, refresh."
             : "You can head back to your dashboard to monitor your updated balance and recent transactions."}
         </p>
 

@@ -75,6 +75,8 @@ model CreditTransaction {
 
   @@index([userId, createdAt])
   @@index([sessionId])
+  @@index([expiresAt, remainingCredits])
+  @@index([userId, remainingCredits, createdAt])
 }
 
 model TokenLog {

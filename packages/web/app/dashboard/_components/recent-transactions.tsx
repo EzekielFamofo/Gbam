@@ -9,6 +9,8 @@ const TRANSACTION_LABELS: Record<DashboardTransactionItem["type"], string> = {
   purchase: "Purchase",
   adjustment: "Adjustment",
   sync: "Sync",
+  trial: "Free trial",
+  expiration: "Expired",
 };
 
 function getTransactionTitle(transaction: DashboardTransactionItem) {
@@ -16,7 +18,14 @@ function getTransactionTitle(transaction: DashboardTransactionItem) {
   if (transaction.type === "purchase") return "Credit purchase";
   if (transaction.type === "adjustment") return "Balance adjustment";
   if (transaction.type === "sync") return "Balance sync";
+  if (transaction.type === "trial") return "Free trial credits";
+  if (transaction.type === "expiration") return "Unused credits expired";
   return "CLI usage";
+}
+
+function isExpiringSoon(expiresAt: string, withinDays = 30) {
+  const daysUntil = (new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+  return daysUntil >= 0 && daysUntil <= withinDays;
 }
 
 export function RecentTransactions({ transactions }: { transactions: DashboardTransactionItem[] }) {
@@ -39,6 +48,8 @@ export function RecentTransactions({ transactions }: { transactions: DashboardTr
           <div className="divide-y divide-border/40 rounded-lg border border-border/50 bg-background/50 overflow-hidden">
             {transactions.map((transaction) => {
               const isNegative = transaction.creditsDelta < 0;
+              const showExpiry = transaction.expiresAt && (transaction.type === "purchase" || transaction.type === "trial");
+
               return (
                 <div key={transaction.id} className="flex items-center justify-between p-3.5 text-xs hover:bg-muted/20 transition-colors">
                   <div className="space-y-1">
@@ -52,6 +63,15 @@ export function RecentTransactions({ transactions }: { transactions: DashboardTr
                         </span>
                       ) : null}
                       <span className="text-[11px]">{formatDateTime(transaction.createdAt)}</span>
+                      {showExpiry && (
+                        <span
+                          className={`text-[11px] ${
+                            isExpiringSoon(transaction.expiresAt!) ? "text-amber-400" : "text-muted-foreground"
+                          }`}
+                        >
+                          · Expires {formatDateTime(transaction.expiresAt!)}
+                        </span>
+                      )}
                     </div>
                   </div>
 

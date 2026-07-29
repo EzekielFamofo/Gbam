@@ -5,7 +5,7 @@ export type DashboardSummary = {
   creditsUsedThisMonth: number;
   lastCliActivityAt: string | null;
   lastCreditsSyncedAt: string | null;
-  soonestExpiringBatch: { credits: number; expiresAt: string } | null; // new
+  soonestExpiringBatch: { credits: number; expiresAt: string } | null;
 };
 
 export type DashboardSessionStatus = "new" | "complete" | "waiting";
@@ -18,10 +18,10 @@ export type DashboardSessionItem = {
   status: DashboardSessionStatus;
   lastActivityAt: string | null;
   creditsUsed: number;
-  projectPath: string |null;
+  projectPath: string | null;
 };
 
-export type DashboardTransactionType = "usage" | "purchase" | "adjustment" | "sync";
+export type DashboardTransactionType = "usage" | "purchase" | "adjustment" | "sync" | "trial" | "expiration";
 
 export type DashboardTransactionItem = {
   id: string;
@@ -30,6 +30,7 @@ export type DashboardTransactionItem = {
   description: string | null;
   sessionId: string | null;
   createdAt: string;
+  expiresAt: string | null; 
 };
 
 export type DashboardResponse = {
