@@ -34,15 +34,24 @@ type RecordPurchaseCreditTransactionParams = {
   metadata?: Record<string, unknown> | null;
 };
 
+
+
 function isUniqueConstraintError(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";
 }
 
 function addExpiryWindow(from: Date): Date {
-  // JS Date normalizes month-overflow (e.g. Jan 31 -> Aug 31 is fine, but
-  // Jan 31 + 6mo landing on a 30-day month rolls into the next month by a
-  // day or two) - acceptable for a soft "about 6 months" policy window.
-  return new Date(from.getFullYear(), from.getMonth() + CREDIT_EXPIRY_MONTHS, from.getDate());
+  // ---------------------------------------------------------------------------
+  // FOR TESTING ONLY:
+  // - To test UI Warning (Expiring Soon): set to 5 days in the future
+  // - To test Immediate Expiry/Sweep: set to 2 minutes in the PAST
+  // ---------------------------------------------------------------------------
+  
+  // Test Option A: Expiring in 5 days (Triggers amber UI badge)
+  return new Date(from.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+  // Test Option B: Expired 2 minutes ago (Ready to be swept)
+  // return new Date(from.getTime() - 2 * 60 * 1000);
 }
 
 function toJsonValue(value: Record<string, unknown> | null | undefined) {
