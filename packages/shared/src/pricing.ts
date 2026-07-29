@@ -4,7 +4,8 @@ export const creditPackIdSchema = z.enum(["starter", "builder", "pro"]);
 export type CreditPackId = z.infer<typeof creditPackIdSchema>;
 
 // Free credits granted to new developers upon sign-up to eliminate onboarding friction
-export const FREE_TRIAL_CREDITS = 50;
+export const FREE_TRIAL_CREDITS = 100;
+export const CREDIT_EXPIRY_MONTHS = 6;
 
 export type CreditPack = {
   id: CreditPackId;

@@ -12,6 +12,8 @@ enum CreditTransactionType {
   purchase
   adjustment
   sync
+  trial
+  expiration
 }
 
 enum BillingProvider {
@@ -68,6 +70,8 @@ model CreditTransaction {
   description       String?
   metadata          Json?
   createdAt         DateTime              @default(now())
+  expiresAt         DateTime?  
+  remainingCredits  Int? 
 
   @@index([userId, createdAt])
   @@index([sessionId])

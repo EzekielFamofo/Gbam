@@ -1,6 +1,7 @@
 import { Prisma } from "@gbam/database";
 import { db } from "@gbam/database/client";
 import {
+  CREDIT_EXPIRY_MONTHS,
   FREE_TRIAL_CREDITS,
   getCreditPackById,
   getTotalCredits,
@@ -37,6 +38,21 @@ function isUniqueConstraintError(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002";
 }
 
+function addExpiryWindow(from: Date): Date {
+  // JS Date normalizes month-overflow (e.g. Jan 31 -> Aug 31 is fine, but
+  // Jan 31 + 6mo landing on a 30-day month rolls into the next month by a
+  // day or two) - acceptable for a soft "about 6 months" policy window.
+  return new Date(from.getFullYear(), from.getMonth() + CREDIT_EXPIRY_MONTHS, from.getDate());
+}
+
+function toJsonValue(value: Record<string, unknown> | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  return value as Prisma.InputJsonValue;
+}
+
 async function ensureCreditAccountRecord(tx: any, userId: string): Promise<CreditAccountRecord> {
   const existing = await tx.creditAccount.findUnique({ where: { userId } });
   if (existing) {
@@ -44,6 +60,7 @@ async function ensureCreditAccountRecord(tx: any, userId: string): Promise<Credi
   }
 
   const now = new Date();
+  const trialExpiresAt = addExpiryWindow(now);
 
   try {
     const created = await tx.creditAccount.create({
@@ -53,6 +70,24 @@ async function ensureCreditAccountRecord(tx: any, userId: string): Promise<Credi
         providerBalanceCredits: FREE_TRIAL_CREDITS,
         balanceSource: "internal",
         lastReconciledAt: now,
+      },
+    });
+
+    // The trial grant needs its own ledger row - not just a number seeded
+    // onto CreditAccount - so it has something for the expiry sweep to find
+    // and something for the dashboard transaction history to display.
+    await tx.creditTransaction.create({
+      data: {
+        userId,
+        type: "trial",
+        creditsDelta: FREE_TRIAL_CREDITS,
+        balanceAfter: FREE_TRIAL_CREDITS,
+        remainingCredits: FREE_TRIAL_CREDITS,
+        expiresAt: trialExpiresAt,
+        provider: "internal",
+        ledgerKey: `trial:${userId}`,
+        description: "Free trial credits",
+        createdAt: now,
       },
     });
 
@@ -71,12 +106,46 @@ async function ensureCreditAccountRecord(tx: any, userId: string): Promise<Credi
   }
 }
 
-function toJsonValue(value: Record<string, unknown> | null | undefined) {
-  if (!value) {
-    return undefined;
+/**
+ * Consumes credits FIFO across the user's non-expired inbound ledger rows,
+ * oldest (== soonest-expiring, since every grant gets the same window) first.
+ * Locks candidate rows with FOR UPDATE so two concurrent debits can't both
+ * read the same remainingCredits and double-spend the same batch.
+ */
+async function consumeCreditsFifo(
+  tx: any,
+  userId: string,
+  amount: number,
+): Promise<{ consumed: number }> {
+  if (amount <= 0) return { consumed: 0 };
+
+  const now = new Date();
+
+  const candidates = await tx.$queryRaw<{ id: string; remainingCredits: number }[]>`
+    SELECT "id", "remainingCredits"
+    FROM "CreditTransaction"
+    WHERE "userId" = ${userId}
+      AND "remainingCredits" > 0
+      AND ("expiresAt" IS NULL OR "expiresAt" > ${now})
+    ORDER BY "createdAt" ASC
+    FOR UPDATE
+  `;
+
+  let remainingToConsume = amount;
+
+  for (const row of candidates) {
+    if (remainingToConsume <= 0) break;
+    const amountTaken = Math.min(row.remainingCredits, remainingToConsume);
+
+    await tx.creditTransaction.update({
+      where: { id: row.id },
+      data: { remainingCredits: { decrement: amountTaken } },
+    });
+
+    remainingToConsume -= amountTaken;
   }
 
-  return value as Prisma.InputJsonValue;
+  return { consumed: amount - remainingToConsume };
 }
 
 export async function ensureCreditAccount(userId: string) {
@@ -133,6 +202,19 @@ export async function recordUsageCreditTransaction({
   try {
     await db.$transaction(async (tx) => {
       const account = await ensureCreditAccountRecord(tx, userId);
+
+      const { consumed } = await consumeCreditsFifo(tx, userId, credits);
+      if (consumed < credits) {
+        // Ledger and cached balance disagree - shouldn't happen if grant/
+        // debit/expire stay the only three mutators, but don't block the
+        // request over it; flag it loudly so it gets investigated.
+        console.error("[credits-ledger] FIFO consumption shortfall", {
+          userId,
+          requested: credits,
+          consumed,
+        });
+      }
+
       const nextBalance = Math.max(0, account.balanceCredits - credits);
 
       await tx.creditAccount.update({
@@ -196,6 +278,7 @@ export async function recordPurchaseCreditTransaction({
   const creditsAdded = getTotalCredits(pack);
   const ledgerKey = `purchase:paystack:${providerReference}`;
   const now = new Date();
+  const expiresAt = addExpiryWindow(now);
   const transactionMetadata = toJsonValue({
     packId,
     packLabel: pack.label,
@@ -227,6 +310,8 @@ export async function recordPurchaseCreditTransaction({
           type: "purchase",
           creditsDelta: creditsAdded,
           balanceAfter: nextBalance,
+          remainingCredits: creditsAdded,
+          expiresAt,
           provider: "paystack",
           providerReference,
           ledgerKey,
@@ -243,4 +328,80 @@ export async function recordPurchaseCreditTransaction({
 
     throw error;
   }
+}
+
+/**
+ * Finds inbound ledger rows past their expiry with unused credits remaining,
+ * zeroes them, writes a matching "expiration" row, and decrements the
+ * owning account's cached balance to match. Intended to run on a daily cron.
+ */
+export async function sweepExpiredCredits(): Promise<{ usersAffected: number; creditsExpired: number }> {
+  const now = new Date();
+  const affectedUsers = new Set<string>();
+  let creditsExpired = 0;
+
+  const expiredRows = await db.$queryRaw<{ id: string; userId: string; remainingCredits: number }[]>`
+    SELECT "id", "userId", "remainingCredits"
+    FROM "CreditTransaction"
+    WHERE "remainingCredits" > 0
+      AND "expiresAt" IS NOT NULL
+      AND "expiresAt" < ${now}
+  `;
+
+  for (const row of expiredRows) {
+    const amount = row.remainingCredits;
+    if (amount <= 0) continue;
+
+    try {
+      await db.$transaction(async (tx) => {
+        const locked = await tx.$queryRaw<{ id: string; remainingCredits: number }[]>`
+          SELECT "id", "remainingCredits"
+          FROM "CreditTransaction"
+          WHERE "id" = ${row.id}
+            AND "remainingCredits" > 0
+          FOR UPDATE
+        `;
+        const current = locked[0];
+        if (!current) return; // already swept by a concurrent run
+
+        await tx.creditTransaction.update({
+          where: { id: row.id },
+          data: { remainingCredits: 0 },
+        });
+
+        const account = await ensureCreditAccountRecord(tx, row.userId);
+        const nextBalance = Math.max(0, account.balanceCredits - current.remainingCredits);
+
+        await tx.creditAccount.update({
+          where: { userId: row.userId },
+          data: {
+            balanceCredits: nextBalance,
+            providerBalanceCredits: nextBalance,
+            lastReconciledAt: now,
+          },
+        });
+
+        await tx.creditTransaction.create({
+          data: {
+            userId: row.userId,
+            type: "expiration",
+            creditsDelta: -current.remainingCredits,
+            balanceAfter: nextBalance,
+            provider: "internal",
+            ledgerKey: `expiration:${row.id}`,
+            description: "Unused credits expired",
+            createdAt: now,
+          },
+        });
+      });
+
+      creditsExpired += amount;
+      affectedUsers.add(row.userId);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) continue; // already processed
+      console.error("[credits-ledger] Failed to expire credit grant", { error, rowId: row.id, userId: row.userId });
+    }
+  }
+
+  return { usersAffected: affectedUsers.size, creditsExpired };
 }

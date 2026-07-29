@@ -5,6 +5,7 @@ export type DashboardSummary = {
   creditsUsedThisMonth: number;
   lastCliActivityAt: string | null;
   lastCreditsSyncedAt: string | null;
+  soonestExpiringBatch: { credits: number; expiresAt: string } | null; // new
 };
 
 export type DashboardSessionStatus = "new" | "complete" | "waiting";

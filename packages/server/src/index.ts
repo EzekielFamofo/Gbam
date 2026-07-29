@@ -11,8 +11,9 @@ import dashboardBilling from "./routes/dashboard-billing";
 import dashboardSessions from "./routes/dashboard-sessions";
 import sessions from "./routes/sessions";
 import dashboardLimits from "./routes/dashboard-limits";
-import dashboardPermissions from "./routes/dashboard-permissions"; // fixed typo: dasboard -> dashboard
+import dashboardPermissions from "./routes/dashboard-permissions"; 
 import permissions from "./routes/permissions";
+import ExpiredCreditsSweep from "./routes/internal-credits-expiry";
 
 // Middleware imports
 import { requireAuth } from "./middleware/require-auth";
@@ -76,7 +77,8 @@ const routes = app
     .route("/chat", chat)
     .route("/dashboard-limits", dashboardLimits)
     .route("/dashboard-permissions", dashboardPermissions) 
-    .route("/permissions", permissions);
+    .route("/permissions", permissions)
+    .route("/internal/credit-expiry", ExpiredCreditsSweep);
 export type AppType = typeof routes;
 
 // Export underlying lib models and execution helpers for monorepo consumption
