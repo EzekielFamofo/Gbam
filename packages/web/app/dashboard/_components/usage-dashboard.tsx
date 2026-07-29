@@ -20,7 +20,26 @@ function getCutoffDate(range: RangeValue) {
 }
 
 function getTransactionTitle(transaction: DashboardTransactionItem) {
-  return transaction.description ?? "CLI usage";
+  if (transaction.description) return transaction.description;
+  if (transaction.type === "purchase") return "Credit purchase";
+  if (transaction.type === "adjustment") return "Balance adjustment";
+  if (transaction.type === "sync") return "Balance sync";
+  if (transaction.type === "trial") return "Free trial credits";
+  if (transaction.type === "expiration") return "Unused credits expired";
+  return "CLI usage";
+}
+
+function isExpiringSoon(expiresAt: string, withinDays = 30) {
+  const daysUntil = (new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+  return daysUntil >= 0 && daysUntil <= withinDays;
+}
+
+function toLocalDateKey(dateInput: string | Date | number): string {
+  const d = new Date(dateInput);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 const MODEL_COLORS = [
@@ -68,9 +87,10 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
       return new Date(transaction.createdAt).getTime() >= cutoff;
     });
 
-    const filteredBySession = selectedSessionId === "all"
-      ? filteredByRange
-      : filteredByRange.filter((t) => t.sessionId === selectedSessionId);
+    const filteredBySession =
+      selectedSessionId === "all"
+        ? filteredByRange
+        : filteredByRange.filter((t) => t.sessionId === selectedSessionId);
 
     const filteredTransactions = normalizedQuery
       ? filteredBySession.filter((transaction) => {
@@ -88,7 +108,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
 
     const usageByDate = new Map<string, number>();
     for (const transaction of usageTransactions) {
-      const dateKey = new Date(transaction.createdAt).toISOString().split("T")[0];
+      const dateKey = toLocalDateKey(transaction.createdAt);
       usageByDate.set(dateKey, (usageByDate.get(dateKey) ?? 0) + Math.abs(transaction.creditsDelta));
     }
 
@@ -99,7 +119,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
     for (let i = daysCount - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(now.getDate() - i);
-      const dateKey = d.toISOString().split("T")[0];
+      const dateKey = toLocalDateKey(d);
       const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const fullDate = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
       const value = usageByDate.get(dateKey) ?? 0;
@@ -110,12 +130,12 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
 
     const typeMap = new Map<string, number>();
     for (const transaction of filteredTransactions) {
-      typeMap.set(transaction.type, (typeMap.get(transaction.type) ?? 0) + Math.abs(transaction.creditsDelta));
+      typeMap.set(transaction.type, (typeMap.get(transaction.type) ?? 0) + transaction.creditsDelta);
     }
 
     const breakdown = Array.from(typeMap.entries())
       .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value);
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
 
     return {
       filteredTransactions,
@@ -129,21 +149,23 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
   // 2. Stable 2-Week (14 Days) Model Line Chart Data with Model Filtering
   const modelChartData = useMemo(() => {
     const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
-    const recentTx = transactions.filter((t) => new Date(t.createdAt).getTime() >= fourteenDaysAgo && t.creditsDelta < 0);
+    const recentTx = transactions.filter(
+      (t) => new Date(t.createdAt).getTime() >= fourteenDaysAgo && t.creditsDelta < 0
+    );
 
     const dates: string[] = [];
     const now = new Date();
     for (let i = 13; i >= 0; i--) {
       const d = new Date();
       d.setDate(now.getDate() - i);
-      dates.push(d.toISOString().split("T")[0]);
+      dates.push(toLocalDateKey(d));
     }
 
     const modelDailyMap = new Map<string, Map<string, number>>();
     const modelTotals = new Map<string, number>();
 
     for (const t of recentTx) {
-      const dateKey = new Date(t.createdAt).toISOString().split("T")[0];
+      const dateKey = toLocalDateKey(t.createdAt);
       const model = (t.sessionId ? sessionMap.get(t.sessionId)?.lastModel : null) ?? "Standard CLI";
 
       modelTotals.set(model, (modelTotals.get(model) ?? 0) + Math.abs(t.creditsDelta));
@@ -163,18 +185,22 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
       availableModels,
       modelDailyMap,
       dates,
-      dateLabels: dates.map((dStr) => new Date(dStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })),
+      dateLabels: dates.map((dStr) => {
+        const [year, month, day] = dStr.split("-").map(Number);
+        return new Date(year, month - 1, day).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      }),
     };
   }, [transactions, sessionMap]);
 
   // Initialize active models if empty
-  const currentActiveModels = activeModels.length > 0 
-    ? activeModels.filter(m => modelChartData.availableModels.includes(m))
-    : modelChartData.availableModels;
+  const currentActiveModels =
+    activeModels.length > 0
+      ? activeModels.filter((m) => modelChartData.availableModels.includes(m))
+      : modelChartData.availableModels;
 
   const filteredModelSeries = useMemo(() => {
     const modelsToRender = currentActiveModels.length > 0 ? currentActiveModels : modelChartData.availableModels;
-    
+
     let globalMax = 1;
     const series = modelsToRender.map((model, idx) => {
       const dayMap = modelDailyMapGet(model, modelChartData.modelDailyMap);
@@ -220,7 +246,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Session Dropdown Filter (Filtered by Title) */}
+            {/* Session Dropdown Filter */}
             <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background/60 px-2.5 py-1">
               <Filter className="size-3.5 text-muted-foreground" />
               <select
@@ -228,7 +254,9 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                 onChange={(e) => setSelectedSessionId(e.target.value)}
                 className="bg-transparent text-xs font-medium text-foreground outline-none cursor-pointer max-w-[200px] truncate"
               >
-                <option value="all" className="bg-background text-foreground">All sessions</option>
+                <option value="all" className="bg-background text-foreground">
+                  All sessions
+                </option>
                 {availableSessions.map((s) => (
                   <option key={s.id} value={s.id} className="bg-background text-foreground">
                     {s.title}
@@ -258,8 +286,8 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-          {/* Vertical Bar Chart Box with Visible Overflow for Tooltips */}
-          <div className="rounded-lg border border-border/50 bg-background/50 p-4 overflow-visible">
+          {/* Vertical Bar Chart Box */}
+          <div className="rounded-lg border border-border/50 bg-background/50 p-4">
             <div className="flex items-baseline justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Credits used in range</p>
@@ -280,10 +308,10 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                   No usage recorded for this filter criteria.
                 </div>
               ) : (
-                <div className="overflow-x-auto overflow-y-visible pb-2">
+                <div className="overflow-x-auto pb-2">
                   <div className="min-w-[580px] space-y-2">
-                    <div className="relative flex h-40 items-end gap-2 pt-10 border-b border-border/60">
-                      <div className="pointer-events-none absolute inset-x-0 top-8 border-b border-dashed border-border/20" />
+                    <div className="relative flex h-44 items-end gap-2 pt-12 border-b border-border/60">
+                      <div className="pointer-events-none absolute inset-x-0 top-12 border-b border-dashed border-border/20" />
                       <div className="pointer-events-none absolute inset-x-0 top-1/2 border-b border-dashed border-border/20" />
 
                       {dailySeries.map((item) => {
@@ -293,7 +321,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                             key={item.dateStr}
                             className="group relative flex flex-1 flex-col items-center h-full justify-end cursor-pointer"
                           >
-                            <div className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 z-30 hidden rounded-md border border-border/80 bg-popover px-2.5 py-1 text-[11px] font-mono text-popover-foreground shadow-xl group-hover:flex whitespace-nowrap items-center gap-1.5">
+                            <div className="pointer-events-none absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 hidden rounded-md border border-border/80 bg-popover px-2.5 py-1 text-[11px] font-mono text-popover-foreground shadow-xl group-hover:flex whitespace-nowrap items-center gap-1.5">
                               <span className="text-muted-foreground">{item.fullDate}:</span>
                               <span className="font-bold text-primary">{formatCredits(item.value)} credits</span>
                             </div>
@@ -341,7 +369,14 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                     className="flex items-center justify-between rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-xs"
                   >
                     <span className="capitalize font-medium text-foreground">{item.label}</span>
-                    <span className="font-mono font-bold text-foreground">{formatCredits(item.value)}</span>
+                    <span
+                      className={`font-mono font-bold ${
+                        item.value < 0 ? "text-destructive" : "text-emerald-400"
+                      }`}
+                    >
+                      {item.value > 0 ? "+" : ""}
+                      {formatCredits(item.value)}
+                    </span>
                   </div>
                 ))
               )}
@@ -350,7 +385,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
         </div>
       </section>
 
-      {/* Dynamic Filterable Line Chart Section: Credits Used Per Model */}
+      {/* Dynamic Filterable Line Chart Section */}
       <section className="rounded-xl border border-border/60 bg-card/40 p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -402,13 +437,17 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                 ))}
               </div>
 
-              {/* SVG Multi-Line Chart Canvas with Thinner Lines */}
+              {/* SVG Multi-Line Chart Canvas */}
               <div className="relative h-48 w-full pt-4">
                 <div className="pointer-events-none absolute inset-x-0 top-0 border-b border-dashed border-border/20" />
                 <div className="pointer-events-none absolute inset-x-0 top-1/2 border-b border-dashed border-border/20" />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-border/60" />
 
-                <svg className="absolute inset-0 h-full w-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+                <svg
+                  className="absolute inset-0 h-full w-full overflow-visible"
+                  preserveAspectRatio="none"
+                  viewBox="0 0 100 100"
+                >
                   {filteredModelSeries.series.map((s) => {
                     const pointsCount = s.points.length;
                     const pathCoords = s.points
@@ -427,6 +466,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                         strokeWidth="1.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        vectorEffect="non-scaling-stroke"
                         points={pathCoords}
                       />
                     );
@@ -487,6 +527,11 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                 <tbody className="divide-y divide-border/40">
                   {filteredTransactions.map((transaction) => {
                     const isNegative = transaction.creditsDelta < 0;
+                    const showExpiry = Boolean(
+                      transaction.expiresAt &&
+                        (transaction.type === "purchase" || transaction.type === "trial")
+                    );
+
                     return (
                       <tr key={transaction.id} className="hover:bg-muted/20 transition-colors">
                         <td className="py-3 pl-4 pr-3">
@@ -496,7 +541,18 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                           </div>
                         </td>
                         <td className="py-3 px-3 text-muted-foreground whitespace-nowrap">
-                          {formatDateTime(transaction.createdAt)}
+                          <div>{formatDateTime(transaction.createdAt)}</div>
+                          {showExpiry && (
+                            <div
+                              className={`text-[10px] ${
+                                isExpiringSoon(transaction.expiresAt!)
+                                  ? "text-amber-400 font-medium"
+                                  : "text-muted-foreground/80"
+                              }`}
+                            >
+                              Expires {formatDateTime(transaction.expiresAt!)}
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-3">
                           <span className="inline-flex items-center rounded-md bg-muted/60 border border-border/60 px-2 py-0.5 text-[10px] font-mono uppercase font-medium text-muted-foreground">
