@@ -3,14 +3,12 @@
 import { useMemo, useState } from "react";
 import type { DashboardTransactionItem, DashboardSessionItem } from "@gbam/shared";
 import { formatCredits, formatDateTime } from "@/lib/dashboard/format";
-import { Search, Filter, Cpu, Check } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { EmptyState } from "./empty-state";
 import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -53,14 +51,6 @@ function toLocalDateKey(dateInput: string | Date | number): string {
   return `${year}-${month}-${day}`;
 }
 
-const MODEL_HEX_COLORS = [
-  "#3b82f6", // Primary / Blue
-  "#34d399", // Emerald
-  "#38bdf8", // Sky
-  "#fbbf24", // Amber
-  "#a78bfa", // Violet
-];
-
 type Props = {
   transactions: DashboardTransactionItem[];
   sessions?: DashboardSessionItem[];
@@ -82,35 +72,10 @@ function DailyTooltip({ active, payload }: any) {
   return null;
 }
 
-// Custom Floating Tooltip for Multi-Model Telemetry
-function ModelTooltip({ active, payload, label }: any) {
-  if (active && payload && payload.length) {
-    return (
-      <div className="rounded-lg border border-border/80 bg-popover/95 p-3 text-xs text-popover-foreground shadow-xl backdrop-blur-md space-y-1.5">
-        <p className="font-medium text-muted-foreground mb-1">{label}</p>
-        {payload.map((entry: any) => (
-          <div key={entry.name} className="flex items-center gap-2 font-mono">
-            <span
-              className="size-2 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-foreground">{entry.name}:</span>
-            <span className="font-bold text-primary">
-              {formatCredits(entry.value)}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-}
-
 export function UsageDashboard({ transactions, sessions = [] }: Props) {
   const [range, setRange] = useState<RangeValue>("30d");
   const [selectedSessionId, setSelectedSessionId] = useState<string>("all");
   const [query, setQuery] = useState("");
-  const [activeModels, setActiveModels] = useState<string[]>([]);
 
   // Map session IDs to their session objects for quick lookup
   const sessionMap = useMemo(() => {
@@ -131,7 +96,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
     });
   }, [transactions, sessionMap]);
 
-  // 1. Filtered Transactions for Chart & History Table
+  // Filtered Transactions for Chart & History Table
   const { filteredTransactions, totalUsage, dailySeries, breakdown, maxDailyValue } =
     useMemo(() => {
       const cutoff = getCutoffDate(range);
@@ -215,84 +180,6 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
         breakdown,
       };
     }, [query, range, selectedSessionId, transactions]);
-
-  // 2. Stable 2-Week (14 Days) Model Telemetry
-  const modelChartData = useMemo(() => {
-    const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
-    const recentTx = transactions.filter(
-      (t) => new Date(t.createdAt).getTime() >= fourteenDaysAgo && t.creditsDelta < 0
-    );
-
-    const dates: string[] = [];
-    const now = new Date();
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
-      dates.push(toLocalDateKey(d));
-    }
-
-    const modelDailyMap = new Map<string, Map<string, number>>();
-    const modelTotals = new Map<string, number>();
-
-    for (const t of recentTx) {
-      const dateKey = toLocalDateKey(t.createdAt);
-      const model =
-        (t.sessionId ? sessionMap.get(t.sessionId)?.lastModel : null) ?? "Standard CLI";
-
-      modelTotals.set(model, (modelTotals.get(model) ?? 0) + Math.abs(t.creditsDelta));
-
-      if (!modelDailyMap.has(model)) {
-        modelDailyMap.set(model, new Map());
-      }
-      const dayMap = modelDailyMap.get(model)!;
-      dayMap.set(dateKey, (dayMap.get(dateKey) ?? 0) + Math.abs(t.creditsDelta));
-    }
-
-    const availableModels = Array.from(modelTotals.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([model]) => model);
-
-    return {
-      availableModels,
-      modelDailyMap,
-      dates,
-      dateLabels: dates.map((dStr) => {
-        const [year, month, day] = dStr.split("-").map(Number);
-        return new Date(year, month - 1, day).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
-      }),
-    };
-  }, [transactions, sessionMap]);
-
-  const currentActiveModels =
-    activeModels.length > 0
-      ? activeModels.filter((m) => modelChartData.availableModels.includes(m))
-      : modelChartData.availableModels;
-
-  // Format data specifically for Recharts Multi-Line
-  const formattedMultiLineData = useMemo(() => {
-    return modelChartData.dates.map((dateStr, idx) => {
-      const row: Record<string, any> = {
-        date: modelChartData.dateLabels[idx],
-      };
-      currentActiveModels.forEach((model) => {
-        const dayMap = modelChartData.modelDailyMap.get(model);
-        row[model] = dayMap?.get(dateStr) ?? 0;
-      });
-      return row;
-    });
-  }, [modelChartData, currentActiveModels]);
-
-  const toggleModelFilter = (model: string) => {
-    if (activeModels.includes(model)) {
-      if (activeModels.length === 1) return;
-      setActiveModels(activeModels.filter((m) => m !== model));
-    } else {
-      setActiveModels([...activeModels, model]);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -434,109 +321,6 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
               )}
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Dynamic Filterable Line Chart Section */}
-      <section className="rounded-xl border border-border/60 bg-card/40 p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h3 className="font-display text-base font-semibold flex items-center gap-2">
-              <Cpu className="size-4 text-primary" /> Credits used per model
-            </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Stable 14-day telemetry. Toggle model filters below to compare multiple models at once.
-            </p>
-          </div>
-
-          {/* Model Filter Toggles */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {modelChartData.availableModels.map((model) => {
-              const isSelected = currentActiveModels.includes(model);
-              return (
-                <button
-                  key={model}
-                  type="button"
-                  onClick={() => toggleModelFilter(model)}
-                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-mono font-medium transition-all border ${
-                    isSelected
-                      ? "border-primary/50 bg-primary/10 text-primary shadow-xs"
-                      : "border-border/60 bg-background/50 text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {isSelected && <Check className="size-3" />}
-                  {model}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-5 rounded-lg border border-border/50 bg-background/50 p-4">
-          {currentActiveModels.length === 0 ? (
-            <div className="flex h-48 items-center justify-center text-xs text-muted-foreground">
-              Select at least one model to display usage trends.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Custom Model Legend */}
-              <div className="flex flex-wrap items-center gap-4 text-xs">
-                {currentActiveModels.map((model, idx) => (
-                  <div key={model} className="flex items-center gap-1.5">
-                    <span
-                      className="size-2.5 rounded-full"
-                      style={{
-                        backgroundColor:
-                          MODEL_HEX_COLORS[idx % MODEL_HEX_COLORS.length],
-                      }}
-                    />
-                    <span className="font-mono font-medium text-foreground">{model}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Responsive Multi-Line Chart */}
-              <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={formattedMultiLineData}
-                    margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="var(--border)"
-                      strokeOpacity={0.4}
-                    />
-                    <XAxis
-                      dataKey="date"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-                      domain={[0, "auto"]}
-                    />
-                    <Tooltip content={<ModelTooltip />} />
-                    {currentActiveModels.map((model, idx) => (
-                      <Line
-                        key={model}
-                        type="monotone"
-                        dataKey={model}
-                        stroke={MODEL_HEX_COLORS[idx % MODEL_HEX_COLORS.length]}
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
         </div>
       </section>
 

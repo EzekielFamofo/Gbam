@@ -20,9 +20,9 @@ OS="$(uname -s)"
 ARCH="$(uname -m)"
 
 case "${OS}" in
-    Linux*)     PLATFORM="Linux";;
-    Darwin*)    PLATFORM="macOS";;
-    *)          PLATFORM="UNKNOWN:${OS}";;
+    Linux*)  PLATFORM="Linux";;
+    Darwin*) PLATFORM="macOS";;
+    *)       PLATFORM="UNKNOWN:${OS}";;
 esac
 
 echo -e "Detecting system... ${BOLD}${PLATFORM} (${ARCH})${NC}"
@@ -65,7 +65,11 @@ if [ "$HAS_BUN" = true ]; then
     bun install -g gbam-dev
 elif [ "$HAS_NPM" = true ]; then
     echo "Using npm package manager..."
-    npm install -g gbam-dev
+    # Attempt standard npm install; fallback to sudo if permission denied
+    if ! npm install -g gbam-dev 2>/dev/null; then
+        echo -e "${CYAN}Global npm install required elevated privileges. Retrying with sudo...${NC}"
+        sudo npm install -g gbam-dev
+    fi
 fi
 
 # --- 4. Verify Installation & Output Guidance ---
@@ -74,10 +78,9 @@ if command -v gbam >/dev/null 2>&1; then
     VERSION=$(gbam --version 2>/dev/null || echo "latest")
     echo -e "${GREEN}${BOLD}✓ GBAM CLI installed successfully! (${VERSION})${NC}\n"
     echo -e "Get started by running:"
-    echo -e "  ${CYAN}gbam login${NC}"
-    echo -e "  ${CYAN}gbam${NC}\n"
+    echo -e "  ${CYAN}gbam${NC}"
 else
     echo -e "${GREEN}Installation complete!${NC}"
     echo -e "Please restart your terminal or run: ${CYAN}source ~/.bashrc${NC} (or ${CYAN}source ~/.zshrc${NC})"
-    echo -e "Then run: ${CYAN}gbam login${NC}"
+    echo -e "Then run: ${CYAN}gbam${NC}"
 fi
