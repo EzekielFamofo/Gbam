@@ -28,7 +28,7 @@ import { Prisma } from "@gbam/database";
 import { db } from "@gbam/database/client";
 import { buildSystemPrompt } from "../system-prompt"; 
 import { CalculateCreditsForUsage } from "../lib/credits";
-import { estimatePartialUsage, resolveUsageForBilling } from "../lib/credits-estimation";
+import { resolveUsageForBilling } from "../lib/credits-estimation";
 import { recordUsageCreditTransaction } from "../lib/credits-ledger";
 import { requireAuth } from "../middleware/require-auth";
 import { requireSpendLimit } from "../middleware/require-spend-limit";
@@ -62,7 +62,8 @@ const submitValidator = zValidator("json", submitSchema, (result, c) => {
   }
 });
 
-function hasPendingToolCalls(message: GbamUIMessage) {
+function hasPendingToolCalls(message?: GbamUIMessage) {
+  if (!message || !Array.isArray(message.parts)) return false;
   return message.parts.some((part) => {
     if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
       const state = (part as { state?: string }).state;
@@ -73,8 +74,10 @@ function hasPendingToolCalls(message: GbamUIMessage) {
 }
 
 function markPendingToolCallsAsInterrupted<T extends GbamUIMessage>(messages: T[]): T[] {
+  if (!Array.isArray(messages)) return [];
+
   return messages.map((msg) => {
-    if (!Array.isArray(msg.parts)) return msg;
+    if (!msg || !Array.isArray(msg.parts)) return msg;
 
     const hasPending = msg.parts.some((part) => {
       if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
@@ -90,6 +93,7 @@ function markPendingToolCallsAsInterrupted<T extends GbamUIMessage>(messages: T[
       ...msg,
       parts: msg.parts.map((part) => {
         if (
+          part &&
           (part.type === "dynamic-tool" || part.type.startsWith("tool-")) &&
           (part as { state?: string }).state !== "output-available" &&
           (part as { state?: string }).state !== "output-error"
@@ -107,6 +111,8 @@ function markPendingToolCallsAsInterrupted<T extends GbamUIMessage>(messages: T[
 }
 
 function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[] {
+  if (!Array.isArray(messages)) return [];
+
   return messages.map((msg) => {
     const cleanMsg = JSON.parse(JSON.stringify(msg)) as Record<string, unknown>;
 
@@ -321,113 +327,124 @@ const app = new Hono<AuthenticatedEnv>()
         onError(error) {
           return error instanceof Error ? error.message : String(error);
         },
-        async onEnd(event) {
-          const completedAt = new Date();
-
-          if (!event.isAborted) {
-            if (hasPendingToolCalls(event.responseMessage as unknown as GbamUIMessage)) return;
-
-            const sanitizedMessages = sanitizeUIMessagesForStorage(
-              event.messages as unknown as GbamUIMessage[]
-            );
-
-            await db.session.update({
-              where: { id, userId },
-              data: {
-                messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
-                lastMode: mode,
-                lastModel: model,
-                agentsMdHash: nextAgentsMdHash,
-                projectPath: resolvedProjectPath,
-                lastActivityAt: completedAt,
-                status: "complete",
-                updatedAt: completedAt,
-              },
-            });
-
-            if (!completedUsage) return;
-
+        onEnd(event) {
+          // Wrap persistence in an un-awaited background IIFE to safeguard
+          // execution against HTTP request context abort drops
+          (async () => {
             try {
-              const billableUsage = CalculateCreditsForUsage({
-                provider: resolvedModel.provider,
-                model: resolvedModel.modelId,
-                usage: completedUsage,
+              const completedAt = new Date();
+
+              if (!event.isAborted) {
+                if (hasPendingToolCalls(event.responseMessage as unknown as GbamUIMessage)) return;
+
+                const sanitizedMessages = sanitizeUIMessagesForStorage(
+                  event.messages as unknown as GbamUIMessage[]
+                );
+
+                await db.session.update({
+                  where: { id, userId },
+                  data: {
+                    messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
+                    lastMode: mode,
+                    lastModel: model,
+                    agentsMdHash: nextAgentsMdHash,
+                    projectPath: resolvedProjectPath,
+                    lastActivityAt: completedAt,
+                    status: "complete",
+                    updatedAt: completedAt,
+                  },
+                });
+
+                if (!completedUsage) return;
+
+                try {
+                  const billableUsage = CalculateCreditsForUsage({
+                    provider: resolvedModel.provider,
+                    model: resolvedModel.modelId,
+                    usage: completedUsage,
+                  });
+
+                  const providerReference = `chat-message:${event.responseMessage.id}-${executionId}`;
+
+                  await recordUsageCreditTransaction({
+                    userId,
+                    sessionId: id,
+                    messageId: event.responseMessage.id,
+                    credits: billableUsage.credits,
+                    description: session.title,
+                    providerReference,
+                  });
+                } catch (error) {
+                  console.error("Failed to record credit usage for chat message", {
+                    error,
+                    sessionId: id,
+                    messageId: event.responseMessage.id,
+                    userId,
+                  });
+                }
+
+                return;
+              }
+
+              // --- INTERRUPTED / ABORTED STREAM HANDLING ---
+              const messagesWithInterruptedToolsMarked = markPendingToolCallsAsInterrupted(
+                event.messages as unknown as GbamUIMessage[]
+              );
+              const sanitizedMessages = sanitizeUIMessagesForStorage(messagesWithInterruptedToolsMarked);
+
+              await db.session.update({
+                where: { id, userId },
+                data: {
+                  messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
+                  lastMode: mode,
+                  lastModel: model,
+                  agentsMdHash: nextAgentsMdHash,
+                  projectPath: resolvedProjectPath,
+                  lastActivityAt: completedAt,
+                  status: "interrupted",
+                  updatedAt: completedAt,
+                },
               });
 
-              const providerReference = `chat-message:${event.responseMessage.id}-${executionId}`;
+              const responseMessageParts = event.responseMessage?.parts ?? [];
+              const { usage: usageForBilling, isEstimated } = resolveUsageForBilling(completedUsage, {
+                modelMessages,
+                responseMessageParts,
+              });
 
-              await recordUsageCreditTransaction({
-                userId,
-                sessionId: id,
-                messageId: event.responseMessage.id,
-                credits: billableUsage.credits,
-                description: session.title,
-                providerReference,
-              });
-            } catch (error) {
-              console.error("Failed to record credit usage for chat message", {
-                error,
-                sessionId: id,
-                messageId: event.responseMessage.id,
-                userId,
-              });
+              try {
+                const billableUsage = CalculateCreditsForUsage({
+                  provider: resolvedModel.provider,
+                  model: resolvedModel.modelId,
+                  usage: usageForBilling,
+                });
+
+                const responseMessageId = event.responseMessage?.id ?? crypto.randomUUID();
+                const providerReference = `chat-message:${responseMessageId}-${executionId}`;
+
+                await recordUsageCreditTransaction({
+                  userId,
+                  sessionId: id,
+                  messageId: responseMessageId,
+                  credits: billableUsage.credits,
+                  description: isEstimated
+                    ? `${session.title} (interrupted - estimated usage)`
+                    : `${session.title} (interrupted)`,
+                  providerReference,
+                });
+              } catch (error) {
+                console.error("Failed to record credit usage for interrupted chat message", {
+                  error,
+                  sessionId: id,
+                  messageId: event.responseMessage?.id,
+                  userId,
+                  isEstimated,
+                });
+              }
+            } catch (bgError) {
+              console.error("Fatal error during background stream persistence:", bgError);
             }
-
-            return;
-          }
-
-          const messagesWithInterruptedToolsMarked = markPendingToolCallsAsInterrupted(
-            event.messages as unknown as GbamUIMessage[]
-          );
-          const sanitizedMessages = sanitizeUIMessagesForStorage(messagesWithInterruptedToolsMarked);
-
-          await db.session.update({
-            where: { id, userId },
-            data: {
-              messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
-              lastMode: mode,
-              lastModel: model,
-              agentsMdHash: nextAgentsMdHash,
-              projectPath: resolvedProjectPath,
-              lastActivityAt: completedAt,
-              status: "interrupted",
-              updatedAt: completedAt,
-            },
-          });
-
-          const { usage: usageForBilling, isEstimated } = resolveUsageForBilling(completedUsage, {
-            modelMessages,
-            responseMessageParts: event.responseMessage.parts,
-          });
-
-          try {
-            const billableUsage = CalculateCreditsForUsage({
-              provider: resolvedModel.provider,
-              model: resolvedModel.modelId,
-              usage: usageForBilling,
-            });
-
-            const providerReference = `chat-message:${event.responseMessage.id}-${executionId}`;
-
-            await recordUsageCreditTransaction({
-              userId,
-              sessionId: id,
-              messageId: event.responseMessage.id,
-              credits: billableUsage.credits,
-              description: isEstimated
-                ? `${session.title} (interrupted - estimated usage)`
-                : `${session.title} (interrupted)`,
-              providerReference,
-            });
-          } catch (error) {
-            console.error("Failed to record credit usage for interrupted chat message", {
-              error,
-              sessionId: id,
-              messageId: event.responseMessage.id,
-              userId,
-              isEstimated,
-            });
-          }
+          })();
         },
       });
 
