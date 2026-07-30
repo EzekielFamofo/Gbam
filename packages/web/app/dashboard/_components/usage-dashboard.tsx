@@ -7,8 +7,8 @@ import { Search, Filter, Cpu, Check } from "lucide-react";
 import { EmptyState } from "./empty-state";
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   LineChart,
   Line,
   XAxis,
@@ -347,7 +347,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-          {/* Main Area Chart Container */}
+          {/* Main Bar Chart Container */}
           <div className="rounded-lg border border-border/50 bg-background/50 p-4">
             <div className="flex items-baseline justify-between mb-4">
               <div>
@@ -370,16 +370,10 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
+                  <BarChart
                     data={dailySeries}
                     margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
                   >
-                    <defs>
-                      <linearGradient id="usageGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
@@ -401,21 +395,14 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                     />
                     <Tooltip
                       content={<DailyTooltip />}
-                      cursor={{
-                        stroke: "var(--muted-foreground)",
-                        strokeWidth: 1,
-                        strokeDasharray: "4 4",
-                      }}
+                      cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
                     />
-                    <Area
-                      type="monotone"
+                    <Bar
                       dataKey="value"
-                      stroke="var(--primary)"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#usageGradient)"
+                      fill="var(--primary)"
+                      radius={[4, 4, 0, 0]}
                     />
-                  </AreaChart>
+                  </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
