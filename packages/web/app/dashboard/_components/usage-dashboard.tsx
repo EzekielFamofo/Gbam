@@ -376,31 +376,33 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                   >
                     <defs>
                       <linearGradient id="usageGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
-                      stroke="hsl(var(--border) / 0.4)"
+                      stroke="var(--border)"
+                      strokeOpacity={0.4}
                     />
                     <XAxis
                       dataKey="label"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
                       interval={range === "7d" ? 0 : 4}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
+                      domain={[0, "auto"]}
                     />
                     <Tooltip
                       content={<DailyTooltip />}
                       cursor={{
-                        stroke: "hsl(var(--muted-foreground))",
+                        stroke: "var(--muted-foreground)",
                         strokeWidth: 1,
                         strokeDasharray: "4 4",
                       }}
@@ -408,7 +410,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                     <Area
                       type="monotone"
                       dataKey="value"
-                      stroke="hsl(var(--primary))"
+                      stroke="var(--primary)"
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#usageGradient)"
@@ -516,18 +518,20 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
-                      stroke="hsl(var(--border) / 0.4)"
+                      stroke="var(--border)"
+                      strokeOpacity={0.4}
                     />
                     <XAxis
                       dataKey="date"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
+                      domain={[0, "auto"]}
                     />
                     <Tooltip content={<ModelTooltip />} />
                     {currentActiveModels.map((model, idx) => (
