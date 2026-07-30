@@ -110,26 +110,24 @@ function markPendingToolCallsAsInterrupted<T extends GbamUIMessage>(messages: T[
   });
 }
 
+/**
+ * Optimized sanitization function using shallow copy & destructuring
+ * instead of CPU-expensive JSON serialization (JSON.parse/stringify).
+ */
 function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[] {
   if (!Array.isArray(messages)) return [];
 
   return messages.map((msg) => {
-    const cleanMsg = JSON.parse(JSON.stringify(msg)) as Record<string, unknown>;
-
-    delete cleanMsg.providerMetadata;
-    delete cleanMsg.providerOptions;
+    const { providerMetadata, providerOptions, ...cleanMsg } = msg as any;
 
     if (typeof cleanMsg.id === "string" && cleanMsg.id.startsWith("msg_")) {
       delete cleanMsg.id;
     }
 
     if (Array.isArray(cleanMsg.parts)) {
-      cleanMsg.parts = cleanMsg.parts.map((part) => {
+      cleanMsg.parts = cleanMsg.parts.map((part: any) => {
         if (part && typeof part === "object") {
-          const cleanPart = { ...part } as Record<string, unknown>;
-          delete cleanPart.providerMetadata;
-          delete cleanPart.providerOptions;
-
+          const { providerMetadata: _, providerOptions: __, ...cleanPart } = part;
           if (typeof cleanPart.id === "string" && cleanPart.id.startsWith("msg_")) {
             delete cleanPart.id;
           }
@@ -139,7 +137,7 @@ function sanitizeUIMessagesForStorage(messages: GbamUIMessage[]): GbamUIMessage[
       });
     }
 
-    return cleanMsg as unknown as GbamUIMessage;
+    return cleanMsg as GbamUIMessage;
   });
 }
 
@@ -233,12 +231,29 @@ const app = new Hono<AuthenticatedEnv>()
 
       const resolvedModel = resolveChatModel(model);
 
+      // 1. Validate ONLY incoming delta messages instead of the entire historic session
+      const validationResult = await safeValidateUIMessages({
+        messages,
+        tools: tools as any,
+      });
+
+      if (!validationResult.success) {
+        console.error("🚨 UIMessage validation failed:", JSON.stringify(validationResult.error.message));
+        return c.json({ 
+          error: "Invalid chat history format", 
+          details: validationResult.error.message
+        }, 400);
+      }
+
+      const validatedIncomingMessages = validationResult.data as GbamUIMessage[];
+
+      // 2. Merge validated incoming messages with trusted past messages from DB
       const previousMessages = Array.isArray(session.messages)
         ? (session.messages as unknown as GbamUIMessage[])
         : [];
       const mergedMessages = [...previousMessages];
 
-      for (const message of messages) {
+      for (const message of validatedIncomingMessages) {
         const incomingMessage = {
           ...message,
           metadata: { ...message.metadata, mode, model },
@@ -253,24 +268,9 @@ const app = new Hono<AuthenticatedEnv>()
         }
       }
 
-      const cleanMergedMessages = compactConversationForSession(
+      const nextMessages = compactConversationForSession(
         mergedMessages.filter((m) => m.parts && m.parts.length > 0),
-      );
-
-      const validationResult = await safeValidateUIMessages({
-        messages: cleanMergedMessages,
-        tools: tools as any,
-      });
-
-      if (!validationResult.success) {
-        console.error("🚨 UIMessage validation failed:", JSON.stringify(validationResult.error.message));
-        return c.json({ 
-          error: "Invalid chat history format", 
-          details: validationResult.error.message
-        }, 400);
-      }
-
-      const nextMessages = validationResult.data as GbamUIMessage[];
+      ) as GbamUIMessage[];
 
       const rawModelMessages = await convertToModelMessages(nextMessages, { tools });
       const modelMessages = completeDanglingToolCalls(rawModelMessages);
@@ -451,6 +451,12 @@ const app = new Hono<AuthenticatedEnv>()
       return createUIMessageStreamResponse({
         stream: messageStream,
         consumeSseStream: consumeStream,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
       });
     },
   );

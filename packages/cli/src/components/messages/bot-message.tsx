@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { TextAttributes } from "@opentui/core";
 import { type ModeType } from "@gbam/shared";
 import prettyMs from "pretty-ms";
@@ -116,9 +117,9 @@ function ToolState({ state, errorText }: { state?: string; errorText?: string })
   return null;
 }
 
-export function BotMessage({ parts, model, mode, durationMs, streaming = false }: Props) {
+function BotMessageComponent({ parts, model, mode, durationMs, streaming = false }: Props) {
   const accentColor = getModeAccent(mode);
-  const blocks = toRenderBlocks(parts);
+  const blocks = useMemo(() => toRenderBlocks(parts), [parts]);
 
   return (
     <MessageFrame
@@ -173,7 +174,8 @@ export function BotMessage({ parts, model, mode, durationMs, streaming = false }
             );
           }
 
-          if (block.kind === "reasoning") {            return (
+          if (block.kind === "reasoning") {
+            return (
               <box key={block.key} width="100%" flexDirection="row" overflow="hidden">
                 <box width={1} backgroundColor={UI_THEME.reasoningAccent} flexShrink={0} />
                 <box flexGrow={1} paddingLeft={1} flexDirection="column" gap={1}>
@@ -211,3 +213,5 @@ export function BotMessage({ parts, model, mode, durationMs, streaming = false }
     </MessageFrame>
   );
 }
+
+export const BotMessage = memo(BotMessageComponent);

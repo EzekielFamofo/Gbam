@@ -174,15 +174,8 @@ export function useChat(
     [sessionId],
   );
 
-  return {
-    messages: chat.messages,
-    status: chat.status,
-    error: chat.error,
-    // True while any local tool work is in progress - executing a command,
-    // waiting on a permission prompt - independent of whether the model is
-    // currently streaming text.
-    isExecutingTools: pendingToolCallCount > 0,
-    submit: async (params: { userText: string; mode: ModeType; model: SupportedChatModelId }) => {
+  const submit = useCallback(
+    async (params: { userText: string; mode: ModeType; model: SupportedChatModelId }) => {
       await ensureRootAgentsFile();
       permissionConfigRef.current = fetchPermissionConfig();
 
@@ -194,6 +187,18 @@ export function useChat(
         },
       });
     },
+    [chat.sendMessage, fetchPermissionConfig],
+  );
+
+  return {
+    messages: chat.messages,
+    status: chat.status,
+    error: chat.error,
+    // True while any local tool work is in progress - executing a command,
+    // waiting on a permission prompt - independent of whether the model is
+    // currently streaming text.
+    isExecutingTools: pendingToolCallCount > 0,
+    submit,
     abort: chat.stop,
     interrupt: chat.stop,
     renameSession,
