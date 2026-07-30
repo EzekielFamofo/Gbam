@@ -40,7 +40,7 @@ type SoonestExpiringRow = {
 };
 
 function normalizeStatus(value: string | null): DashboardSessionStatus {
-  if (value === "complete" || value === "waiting" || value === "new") {
+  if (value === "complete" || value === "waiting" || value === "new" || value === "interrupted") {
     return value;
   }
 

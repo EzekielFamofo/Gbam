@@ -13,9 +13,18 @@ function formatStatus(status: DashboardSessionItem["status"]) {
       return "Complete";
     case "waiting":
       return "Waiting";
+    case "interrupted":
+      return "Interrupted";
     default:
       return "New";
   }
+}
+
+function getStatusClasses(status: DashboardSessionItem["status"]) {
+  if (status === "interrupted") {
+    return "border-amber-500/30 bg-amber-500/10 text-amber-400";
+  }
+  return "border-border/60 bg-muted/60 text-muted-foreground";
 }
 
 function getModeClasses(mode: DashboardSessionItem["lastMode"]) {
@@ -155,7 +164,7 @@ export function SessionsTable({
                       {session.lastModel ?? "—"}
                     </td>
                     <td className="py-3 px-3">
-                      <span className="inline-flex rounded-md border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono uppercase font-medium text-muted-foreground">
+                      <span className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-mono uppercase font-medium ${getStatusClasses(session.status)}`}>
                         {formatStatus(session.status)}
                       </span>
                     </td>

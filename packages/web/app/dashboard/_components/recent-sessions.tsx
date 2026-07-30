@@ -12,9 +12,18 @@ function formatStatus(status: DashboardSessionItem["status"]) {
       return "Complete";
     case "waiting":
       return "Waiting";
+    case "interrupted":
+      return "Interrupted";
     default:
       return "New";
   }
+}
+
+function getStatusClasses(status: DashboardSessionItem["status"]) {
+  if (status === "interrupted") {
+    return "text-amber-400";
+  }
+  return "text-foreground";
 }
 
 function truncateSessionTitle(title: string, maxWords = 6) {
@@ -69,7 +78,7 @@ export function RecentSessions({ sessions, onUpdated }: Props) {
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
                       <span>
-                        Status: <span className="text-foreground font-medium">{formatStatus(session.status)}</span>
+                        Status: <span className={`font-medium ${getStatusClasses(session.status)}`}>{formatStatus(session.status)}</span>
                       </span>
                       <span>•</span>
                       <span>

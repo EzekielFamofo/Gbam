@@ -25,6 +25,7 @@ import { Prisma } from "@gbam/database";
 import { db } from "@gbam/database/client";
 import { buildSystemPrompt } from "../system-prompt"; 
 import { CalculateCreditsForUsage } from "../lib/credits";
+import { estimatePartialUsage, resolveUsageForBilling  } from "../lib/credits-estimation";
 import { recordUsageCreditTransaction } from "../lib/credits-ledger";
 import { requireAuth } from "../middleware/require-auth";
 import { requireSpendLimit } from "../middleware/require-spend-limit";
@@ -65,6 +66,48 @@ function hasPendingToolCalls(message: GbamUIMessage) {
       return state !== "output-available" && state !== "output-error";
     }
     return false;
+  });
+}
+
+/**
+ * Only relevant on abort: normally hasPendingToolCalls gates persistence
+ * until every tool call resolves, but an interrupted turn has no "next
+ * round" coming to resolve them in. Rather than persist a tool part stuck
+ * forever in a "running" state (the same failure mode as the earlier
+ * orphaned-confirmation bug, via a different trigger), mark anything still
+ * pending as explicitly interrupted before it's written to storage.
+ */
+function markPendingToolCallsAsInterrupted<T extends GbamUIMessage>(messages: T[]): T[] {
+  return messages.map((msg) => {
+    if (!Array.isArray(msg.parts)) return msg;
+
+    const hasPending = msg.parts.some((part) => {
+      if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
+        const state = (part as { state?: string }).state;
+        return state !== "output-available" && state !== "output-error";
+      }
+      return false;
+    });
+
+    if (!hasPending) return msg;
+
+    return {
+      ...msg,
+      parts: msg.parts.map((part) => {
+        if (
+          (part.type === "dynamic-tool" || part.type.startsWith("tool-")) &&
+          (part as { state?: string }).state !== "output-available" &&
+          (part as { state?: string }).state !== "output-error"
+        ) {
+          return {
+            ...part,
+            state: "output-error",
+            errorText: "Execution interrupted before this tool call completed.",
+          } as any;
+        }
+        return part;
+      }),
+    };
   });
 }
 
@@ -177,16 +220,10 @@ const app = new Hono<AuthenticatedEnv>()
 
       const resolvedProjectPath = projectPath ?? session.projectPath ?? undefined;
 
-      // "Changed" only means something once we've seen a hash before. A
-      // first-ever hash, or no hash at all (no AGENTS.md in this project),
-      // isn't a "change" - the discovery directive already covers that via
-      // the fresh-session case in buildSystemPrompt.
       const agentsMdChanged = Boolean(
         session.agentsMdHash && agentsMdHash && session.agentsMdHash !== agentsMdHash
       );
 
-      // What to persist for next time: the latest hash we were sent, or
-      // fall back to what was already stored if this request didn't send one.
       const nextAgentsMdHash = agentsMdHash ?? session.agentsMdHash;
 
       const startTime = Date.now();
@@ -254,10 +291,19 @@ const app = new Hono<AuthenticatedEnv>()
 
       const result = streamText({
         model: resolvedModel.model,
-        system: await buildSystemPrompt({ mode, agentsMdContent, agentsMdChanged,supportsThinking: findSupportedChatModel(resolvedModel.modelId)?.supportsThinking ?? false, }),
+        system: await buildSystemPrompt({
+          mode,
+          agentsMdContent,
+          agentsMdChanged,
+          supportsThinking: findSupportedChatModel(resolvedModel.modelId)?.supportsThinking ?? false,
+        }),
         messages: modelMessages,
         tools,
         providerOptions: resolvedModel.providerOptions,
+        // Propagates a client-side interrupt to the provider call itself -
+        // without this, aborting client-side may not stop the provider from
+        // continuing to generate (and bill you) tokens nobody is reading.
+        abortSignal: c.req.raw.signal,
         onFinish(event) {
           completedUsage = event.totalUsage;
         },
@@ -280,21 +326,72 @@ const app = new Hono<AuthenticatedEnv>()
           };
         },
         async onFinish(event) {
-          if (event.isAborted) return;
-
-          // Don't persist or mark the session complete while this request's
-          // tool calls are still awaiting results - that was the missing
-          // guard causing both the lost-task bug (an incomplete message
-          // snapshot got saved mid-turn) and the dashboard status flicker
-          // (status flipped to "complete" every intermediate round trip in
-          // a multi-tool-call turn instead of only at the true end).
-          if (hasPendingToolCalls(event.responseMessage)) return;
-
           const completedAt = new Date();
 
-          const sanitizedMessages = sanitizeUIMessagesForStorage(
+          // Normal (non-aborted) path: unchanged. Still gate on pending
+          // tool calls so an intermediate round in a multi-tool-call turn
+          // never gets persisted or marked complete prematurely.
+          if (!event.isAborted) {
+            if (hasPendingToolCalls(event.responseMessage)) return;
+
+            const sanitizedMessages = sanitizeUIMessagesForStorage(
+              event.messages as unknown as GbamUIMessage[]
+            );
+
+            await db.session.update({
+              where: { id, userId },
+              data: {
+                messages: compactConversationForSession(sanitizedMessages) as unknown as Prisma.InputJsonValue,
+                lastMode: mode,
+                lastModel: model,
+                agentsMdHash: nextAgentsMdHash,
+                projectPath: resolvedProjectPath,
+                lastActivityAt: completedAt,
+                status: "complete",
+                updatedAt: completedAt,
+              },
+            });
+
+            if (!completedUsage) return;
+
+            try {
+              const billableUsage = CalculateCreditsForUsage({
+                provider: resolvedModel.provider,
+                model: resolvedModel.modelId,
+                usage: completedUsage,
+              });
+
+              const providerReference = `chat-message:${event.responseMessage.id}-${executionId}`;
+
+              await recordUsageCreditTransaction({
+                userId,
+                sessionId: id,
+                messageId: event.responseMessage.id,
+                credits: billableUsage.credits,
+                description: session.title,
+                providerReference,
+              });
+            } catch (error) {
+              console.error("Failed to record credit usage for chat message", {
+                error,
+                sessionId: id,
+                messageId: event.responseMessage.id,
+                userId,
+              });
+            }
+
+            return;
+          }
+
+          // Interrupted path: unlike the normal path, there is no "next
+          // round" coming to complete any pending tool calls or supply
+          // exact usage - so we persist unconditionally (marking any still-
+          // pending tool parts as interrupted first) and estimate billing
+          // when the provider didn't return final usage in time.
+          const messagesWithInterruptedToolsMarked = markPendingToolCallsAsInterrupted(
             event.messages as unknown as GbamUIMessage[]
           );
+          const sanitizedMessages = sanitizeUIMessagesForStorage(messagesWithInterruptedToolsMarked);
 
           await db.session.update({
             where: { id, userId },
@@ -305,18 +402,21 @@ const app = new Hono<AuthenticatedEnv>()
               agentsMdHash: nextAgentsMdHash,
               projectPath: resolvedProjectPath,
               lastActivityAt: completedAt,
-              status: "complete",
+              status: "interrupted",
               updatedAt: completedAt,
             },
           });
 
-          if (!completedUsage) return;
+        const { usage: usageForBilling, isEstimated } = resolveUsageForBilling(completedUsage, {
+          modelMessages,
+          responseMessageParts: event.responseMessage.parts,
+        });
 
           try {
             const billableUsage = CalculateCreditsForUsage({
               provider: resolvedModel.provider,
               model: resolvedModel.modelId,
-              usage: completedUsage,
+              usage: usageForBilling,
             });
 
             const providerReference = `chat-message:${event.responseMessage.id}-${executionId}`;
@@ -326,16 +426,18 @@ const app = new Hono<AuthenticatedEnv>()
               sessionId: id,
               messageId: event.responseMessage.id,
               credits: billableUsage.credits,
-              description: session.title,
+              description: isEstimated
+                ? `${session.title} (interrupted - estimated usage)`
+                : `${session.title} (interrupted)`,
               providerReference,
             });
-
           } catch (error) {
-            console.error("Failed to record credit usage for chat message", {
+            console.error("Failed to record credit usage for interrupted chat message", {
               error,
               sessionId: id,
               messageId: event.responseMessage.id,
               userId,
+              isEstimated,
             });
           }
         },

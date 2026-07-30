@@ -8,7 +8,7 @@ export type DashboardSummary = {
   soonestExpiringBatch: { credits: number; expiresAt: string } | null;
 };
 
-export type DashboardSessionStatus = "new" | "complete" | "waiting";
+export type DashboardSessionStatus = "new" | "complete" | "waiting" | "interrupted";
 
 export type DashboardSessionItem = {
   id: string;
