@@ -1,5 +1,6 @@
 import {
   compactConversationForSession,
+  findSupportedChatModel,
   getToolContracts,
   modeSchema,
   type ModeType,
@@ -253,7 +254,7 @@ const app = new Hono<AuthenticatedEnv>()
 
       const result = streamText({
         model: resolvedModel.model,
-        system: await buildSystemPrompt({ mode, agentsMdContent, agentsMdChanged }),
+        system: await buildSystemPrompt({ mode, agentsMdContent, agentsMdChanged,supportsThinking: findSupportedChatModel(resolvedModel.modelId)?.supportsThinking ?? false, }),
         messages: modelMessages,
         tools,
         providerOptions: resolvedModel.providerOptions,

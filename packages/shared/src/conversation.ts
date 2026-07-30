@@ -62,6 +62,18 @@ function truncateJsonStrings(
   return value;
 }
 
+// Reasoning and tool-call/result parts can carry provider-issued continuity
+// signatures (e.g. Gemini "thought signatures", OpenAI reasoning items) in
+// their providerOptions/providerMetadata, or in some cases their id itself.
+// These must round-trip back to the model unmodified on the next turn, or
+// reasoning-capable models lose track of their own multi-step tool-calling
+// logic ("reasoning drift") - more/duplicate tool calls, forgetting why a
+// tool was called, degraded coherence.
+function isSignatureCriticalPart(part: Record<string, unknown>): boolean {
+  const type = typeof part.type === "string" ? part.type : "";
+  return type === "reasoning" || type.startsWith("reasoning") || type === "dynamic-tool" || type.startsWith("tool-");
+}
+
 function compactMessagePart(
   part: unknown,
   options: ConversationCompactionOptions,
@@ -71,14 +83,22 @@ function compactMessagePart(
   }
 
   const basePart = { ...(part as Record<string, unknown>) };
+  const signatureCritical = isSignatureCriticalPart(basePart);
 
-  // Strip provider metadata & options
-  delete basePart.providerMetadata;
-  delete basePart.providerOptions;
-  delete basePart.experimental_providerMetadata;
+  // Strip provider metadata & options - except on reasoning/tool parts,
+  // where this is exactly where continuity signatures live.
+  if (!signatureCritical) {
+    delete basePart.providerMetadata;
+    delete basePart.providerOptions;
+    delete basePart.experimental_providerMetadata;
+  }
 
-  // Strip provider-assigned IDs from message parts if present
+  // Strip provider-assigned IDs from message parts if present - but not on
+  // signature-critical parts. OpenAI Responses-API-style reasoning ("rs_")
+  // and function-call ("fc_") ids may themselves be load-bearing for
+  // continuity, not just inert bookkeeping - see caveat below.
   if (
+    !signatureCritical &&
     typeof basePart.id === "string" &&
     (basePart.id.startsWith("msg_") || basePart.id.startsWith("rs_") || basePart.id.startsWith("fc_"))
   ) {
@@ -88,7 +108,13 @@ function compactMessagePart(
   const partType = typeof basePart.type === "string" ? basePart.type : "";
 
   if (partType === "reasoning" || partType.startsWith("reasoning")) {
-    return null;
+    // Previously `return null` - dropped the entire part, on every pass,
+    // client-side before every request left the CLI and again server-side
+    // right before convertToModelMessages. Now passed through completely
+    // untouched: no truncation, no field stripping. "Drop whole message" is
+    // still handled safely by the char/message-count window further down;
+    // "modify in place" is what breaks signatures.
+    return basePart;
   }
 
   if (partType === "text" && typeof basePart.text === "string") {
@@ -141,18 +167,15 @@ function compactMessage<TMessage extends AnyUIMessage>(
     return null;
   }
 
-  // Cast through 'unknown' first to convert to Record<string, unknown>
   const cleanMessage = {
     ...message,
     parts: compactedParts,
   } as unknown as Record<string, unknown>;
 
-  // Strip provider metadata & options at top-level message
   delete cleanMessage.providerMetadata;
   delete cleanMessage.providerOptions;
   delete cleanMessage.experimental_providerMetadata;
 
-  // Strip provider-assigned message IDs if present
   if (
     typeof cleanMessage.id === "string" &&
     (cleanMessage.id.startsWith("msg_") ||

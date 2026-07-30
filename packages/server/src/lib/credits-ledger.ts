@@ -41,17 +41,9 @@ function isUniqueConstraintError(error: unknown) {
 }
 
 function addExpiryWindow(from: Date): Date {
-  // ---------------------------------------------------------------------------
-  // FOR TESTING ONLY:
-  // - To test UI Warning (Expiring Soon): set to 5 days in the future
-  // - To test Immediate Expiry/Sweep: set to 2 minutes in the PAST
-  // ---------------------------------------------------------------------------
-  
-  // Test Option A: Expiring in 5 days (Triggers amber UI badge)
-  return new Date(from.getTime() + 5 * 24 * 60 * 60 * 1000);
-
-  // Test Option B: Expired 2 minutes ago (Ready to be swept)
-  // return new Date(from.getTime() - 2 * 60 * 1000);
+  const expiryDate = new Date(from);
+  expiryDate.setMonth(expiryDate.getMonth() + CREDIT_EXPIRY_MONTHS);
+  return expiryDate;
 }
 
 function toJsonValue(value: Record<string, unknown> | null | undefined) {

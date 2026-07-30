@@ -2,20 +2,9 @@ import type { ModeType } from "@gbam/shared";
 
 type SystemPromptParams = {
   mode: ModeType;
-  /**
-   * Pass this only if you already have AGENTS.md content in hand (e.g. from
-   * a DB cache). The server itself has no filesystem access to the user's
-   * project - it never reads the file directly.
-   */
   agentsMdContent?: string;
-  /**
-   * Set by the caller when it knows (via a content hash from the CLI, which
-   * has real filesystem access) that AGENTS.md differs from what the agent
-   * last read in this session. Ignored when `agentsMdContent` is supplied
-   * directly, since that already carries the current content and can be
-   * injected into the system prompt without an extra tool call.
-   */
   agentsMdChanged?: boolean;
+  supportsThinking?: boolean;
 };
 
 /** Read-only tools available in PLAN mode (including web research). */
@@ -48,6 +37,7 @@ export async function buildSystemPrompt({
   mode,
   agentsMdContent,
   agentsMdChanged,
+  supportsThinking = false,
 }: SystemPromptParams): Promise<string> {
   const parts: string[] = [];
   const trimmedGuidelines = agentsMdContent?.trim();
@@ -73,8 +63,8 @@ export async function buildSystemPrompt({
   }
 
   parts.push(buildModeDirectives(mode));
-  parts.push(buildOperationalRules(mode));
-
+  parts.push(buildToolCallingDiscipline());
+  parts.push(buildOperationalRules(mode, supportsThinking));
   return parts.join("\n\n");
 }
 
@@ -123,7 +113,7 @@ function buildModeDirectives(mode: ModeType): string {
 - Implement solution changes directly into the codebase using available tools: ${formatToolList(BUILD_TOOLS)}.
 - Prefer \`editFile\` for targeted modifications to existing code. Use \`writeFile\` primarily for new files or near-total rewrites.
 - **Web Fetch Restriction:** Use \`webfetch\` *strictly only* when the user pastes a direct link or clearly names the exact site/documentation to open. Do not guess URLs or search the web arbitrarily.
-- Use \`bash\` to run tests, linters, or build scripts to verify changes after making edits.
+- Use \`bash\` to run tests, linters, or build scripts to verify changes once you've completed a logical unit of related edits - not after every individual file change. Do not re-run the same verification command again without an intervening code change; if it failed, fix the cause first.
 - Shell awareness: Check previous command outputs for the active shell (Unix/sh vs. Windows/PowerShell) before using platform-specific syntax.
 - Destructive actions: Before running commands that delete data or rewrite history (e.g. \`rm -rf\`, \`git reset --hard\`, force pushes), state the risk and confirm with the user unless they've already explicitly requested it.
 </mode_directives>`;
@@ -133,28 +123,31 @@ function buildModeDirectives(mode: ModeType): string {
   }
 }
 
-function buildOperationalRules(mode: ModeType): string {
-  const errorRecoveryRule =
-    mode === "BUILD"
-      ? "**Command/Tool Failures:** If a tool call or `bash` command fails, inspect the error output/stderr carefully before retrying. Do not re-execute the exact same failing command without fixing parameters."
-      : "**Tool Failures:** If a tool call fails, inspect the error carefully before retrying. Do not re-execute the exact same failing tool call without fixing parameters.";
+function buildToolCallingDiscipline(): string {
+  return `<tool_calling_discipline>
+## Tool-Calling Discipline
+Tools exist to gather ground truth you do not already have, or to make an approved change to the real filesystem/environment - not to think out loud, and not to re-confirm things you already know.
+
+1. **Check your own context first.** Before calling a tool, check whether an earlier tool call in this session already gave you the answer. If it did, reuse it - do not re-fetch the same file, re-run the same search, or re-verify the same fact.
+2. **Trust successful tool results.** If \`editFile\`/\`writeFile\` reports success, treat the change as applied. Do not immediately \`readFile\` the same file purely to confirm an edit that already reported success - only re-read it if your next step genuinely needs broader context beyond the edit itself.
+3. **Consolidate instead of fragmenting.** One well-scoped \`grep\` across a directory beats five separate single-file reads; one \`readFile\` covering a whole function beats three overlapping line-range reads of the same function. Prefer fewer, higher-information calls over many narrow ones.
+4. **Batch aggressively - this matters more here than in a typical agent.** You operate in a client-driven loop: every tool call you leave out of the current turn costs a full round trip back through the user's terminal before you can continue, not just a cheap extra internal step. If you already know you need to read three files or run two independent checks, emit all of those calls together in the same turn rather than one at a time across separate turns.
+5. **Bound your exploration.** Two or three targeted \`glob\`/\`grep\` calls are enough to locate what you need in the large majority of cases. If you're past that and still uncertain, say what's unclear and ask, rather than continuing to search indefinitely. As a rough calibration guide - not a hard cap - most single-file changes should resolve in a handful of tool calls total (locate, read, edit, verify only if warranted); genuinely complex, multi-file investigations may reasonably need more.
+6. **Tools are not a scratchpad.** Work out your plan, your diff, and your reasoning internally before calling a tool. Do not use \`bash\` to perform computations, string manipulation, or logic you can do directly - reserve it for things that actually require executing code against the real environment: running tests, builds, linters, git operations, installing dependencies.
+</tool_calling_discipline>`;
+}
+
+function buildOperationalRules(mode: ModeType, supportsThinking: boolean): string {
+  const turnSequenceRule = supportsThinking
+    ? "**Structured Execution:** You have native extended thinking - use it to decide which tools to call and why. Do not also write a separate visible paragraph re-explaining that plan before calling tools; that duplicates work already done privately. Go directly from thinking to emitting tool calls, or straight to your final answer if none are needed."
+    : "**Structured Execution:** On a turn where tools are needed, keep any visible reasoning before your tool calls brief - state your immediate goal in a sentence or two, then emit all the tool calls that goal requires in that same turn. Once tool outputs return, analyze them and either proceed to the next step or deliver your final answer. Do not spread a batch of calls you already know you need across multiple separate turns.";
+
+  const errorRecoveryRule = mode === "BUILD"
+    ? "**Command/Tool Failures:** If a tool call or `bash` command fails, inspect the error output/stderr carefully before retrying. Do not re-execute the exact same failing command without fixing parameters."
+    : "**Tool Failures:** If a tool call fails, inspect the error carefully before retrying. Do not re-execute the exact same failing tool call without fixing parameters.";
 
   const sections: Array<{ title: string; rules: string[] }> = [
-    {
-      title: "Search & Navigation Strategy",
-      rules: [
-        "**Be Decisive:** Use `glob` and `grep` to locate relevant files before reading. Avoid reading files indiscriminately across the repository.",
-        "**Controlled Web Fetching:** Only use `webfetch` when the user pastes a URL or explicitly mentions which specific site or documentation to open. Never guess links or fetch pages speculatively.",
-        "**Avoid Unnecessary Re-reads:** Do not re-read unchanged files within the same session unless explicitly instructed or confirming recent modifications.",
-        "**Batch Tool Execution:** Emit independent tool calls concurrently in parallel whenever possible (e.g., read multiple files or fetch multiple explicitly requested URLs in one turn).",
-      ],
-    },
-    {
-      title: "Turn Response Sequence",
-      rules: [
-        "**Structured Execution:** On every turn where tools are needed, provide a concise reasoning block outlining your immediate goal, then emit all required tool calls. Once tool outputs are returned in subsequent turns, analyze the results and either proceed with the next step or deliver your final answer.",
-      ],
-    },
+    { title: "Turn Response Sequence", rules: [turnSequenceRule] },
     {
       title: "Error Recovery & Large File/Web Handling",
       rules: [
@@ -166,15 +159,8 @@ function buildOperationalRules(mode: ModeType): string {
 
   let counter = 0;
   const body = sections
-    .map(({ title, rules }) => {
-      const items = rules.map((rule) => `${++counter}. ${rule}`).join("\n");
-      return `### ${title}\n${items}`;
-    })
+    .map(({ title, rules }) => `### ${title}\n${rules.map((rule) => `${++counter}. ${rule}`).join("\n")}`)
     .join("\n\n");
 
-  return `<operational_rules>
-## Operational Rules
-
-${body}
-</operational_rules>`;
+  return `<operational_rules>\n## Operational Rules\n\n${body}\n</operational_rules>`;
 }
