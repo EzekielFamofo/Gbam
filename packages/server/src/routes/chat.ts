@@ -14,6 +14,9 @@ import {
   type UIMessage,
   safeValidateUIMessages,
   type ModelMessage,
+  toUIMessageStream,
+  createUIMessageStreamResponse,
+  consumeStream,
 } from "ai";
 import z from "zod";
 import { isSupportedChatModel, resolveChatModel } from "../lib/models";
@@ -25,7 +28,7 @@ import { Prisma } from "@gbam/database";
 import { db } from "@gbam/database/client";
 import { buildSystemPrompt } from "../system-prompt"; 
 import { CalculateCreditsForUsage } from "../lib/credits";
-import { estimatePartialUsage, resolveUsageForBilling  } from "../lib/credits-estimation";
+import { estimatePartialUsage, resolveUsageForBilling } from "../lib/credits-estimation";
 import { recordUsageCreditTransaction } from "../lib/credits-ledger";
 import { requireAuth } from "../middleware/require-auth";
 import { requireSpendLimit } from "../middleware/require-spend-limit";
@@ -69,14 +72,6 @@ function hasPendingToolCalls(message: GbamUIMessage) {
   });
 }
 
-/**
- * Only relevant on abort: normally hasPendingToolCalls gates persistence
- * until every tool call resolves, but an interrupted turn has no "next
- * round" coming to resolve them in. Rather than persist a tool part stuck
- * forever in a "running" state (the same failure mode as the earlier
- * orphaned-confirmation bug, via a different trigger), mark anything still
- * pending as explicitly interrupted before it's written to storage.
- */
 function markPendingToolCallsAsInterrupted<T extends GbamUIMessage>(messages: T[]): T[] {
   return messages.map((msg) => {
     if (!Array.isArray(msg.parts)) return msg;
@@ -256,9 +251,9 @@ const app = new Hono<AuthenticatedEnv>()
         mergedMessages.filter((m) => m.parts && m.parts.length > 0),
       );
 
-      const validationResult = await safeValidateUIMessages<GbamUIMessage>({
+      const validationResult = await safeValidateUIMessages({
         messages: cleanMergedMessages,
-        tools,
+        tools: tools as any,
       });
 
       if (!validationResult.success) {
@@ -269,7 +264,7 @@ const app = new Hono<AuthenticatedEnv>()
         }, 400);
       }
 
-      const nextMessages = validationResult.data;
+      const nextMessages = validationResult.data as GbamUIMessage[];
 
       const rawModelMessages = await convertToModelMessages(nextMessages, { tools });
       const modelMessages = completeDanglingToolCalls(rawModelMessages);
@@ -300,16 +295,14 @@ const app = new Hono<AuthenticatedEnv>()
         messages: modelMessages,
         tools,
         providerOptions: resolvedModel.providerOptions,
-        // Propagates a client-side interrupt to the provider call itself -
-        // without this, aborting client-side may not stop the provider from
-        // continuing to generate (and bill you) tokens nobody is reading.
         abortSignal: c.req.raw.signal,
         onFinish(event) {
-          completedUsage = event.totalUsage;
+          completedUsage = event.usage;
         },
       });
 
-      return result.toUIMessageStreamResponse<GbamUIMessage>({
+      const messageStream = toUIMessageStream({
+        stream: result.stream,
         originalMessages: nextMessages,
         messageMetadata({ part }) {
           if (part.type === "start") {
@@ -325,14 +318,14 @@ const app = new Hono<AuthenticatedEnv>()
             ...(completedUsage ? { usage: completedUsage } : {}),
           };
         },
-        async onFinish(event) {
+        onError(error) {
+          return error instanceof Error ? error.message : String(error);
+        },
+        async onEnd(event) {
           const completedAt = new Date();
 
-          // Normal (non-aborted) path: unchanged. Still gate on pending
-          // tool calls so an intermediate round in a multi-tool-call turn
-          // never gets persisted or marked complete prematurely.
           if (!event.isAborted) {
-            if (hasPendingToolCalls(event.responseMessage)) return;
+            if (hasPendingToolCalls(event.responseMessage as unknown as GbamUIMessage)) return;
 
             const sanitizedMessages = sanitizeUIMessagesForStorage(
               event.messages as unknown as GbamUIMessage[]
@@ -383,11 +376,6 @@ const app = new Hono<AuthenticatedEnv>()
             return;
           }
 
-          // Interrupted path: unlike the normal path, there is no "next
-          // round" coming to complete any pending tool calls or supply
-          // exact usage - so we persist unconditionally (marking any still-
-          // pending tool parts as interrupted first) and estimate billing
-          // when the provider didn't return final usage in time.
           const messagesWithInterruptedToolsMarked = markPendingToolCallsAsInterrupted(
             event.messages as unknown as GbamUIMessage[]
           );
@@ -407,10 +395,10 @@ const app = new Hono<AuthenticatedEnv>()
             },
           });
 
-        const { usage: usageForBilling, isEstimated } = resolveUsageForBilling(completedUsage, {
-          modelMessages,
-          responseMessageParts: event.responseMessage.parts,
-        });
+          const { usage: usageForBilling, isEstimated } = resolveUsageForBilling(completedUsage, {
+            modelMessages,
+            responseMessageParts: event.responseMessage.parts,
+          });
 
           try {
             const billableUsage = CalculateCreditsForUsage({
@@ -441,9 +429,11 @@ const app = new Hono<AuthenticatedEnv>()
             });
           }
         },
-        onError(error) {
-          return error instanceof Error ? error.message : String(error);
-        },
+      });
+
+      return createUIMessageStreamResponse({
+        stream: messageStream,
+        consumeSseStream: consumeStream,
       });
     },
   );
