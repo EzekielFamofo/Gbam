@@ -36,9 +36,9 @@ const rateFormatter = new Intl.NumberFormat("en-NG", {
 
 const commonFeatures = [
   "Works with every supported model (Gemini & OpenAI)",
-  "Credits never expire",
+  "Credits expire after 6 months",
   "Full CLI + dashboard sync",
-  "Transparent token-level metering",
+  "Transparent credit-level metering",
 ];
 
 export function PricingCard({

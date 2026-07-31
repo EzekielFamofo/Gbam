@@ -37,8 +37,8 @@ Available commands
 - /sessions — browse past sessions
 - /login — sign in with your browser
 - /logout — clear local auth state
-- /upgrade — open credits checkout in your browser
-- /usage — open the billing portal in your browser
+- /upgrade — open the pricing page in your browser
+- /usage — open the billing page in your browser
 - /exit — quit the application
 
 Keyboard shortcuts and interaction

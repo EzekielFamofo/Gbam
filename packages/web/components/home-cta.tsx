@@ -9,13 +9,13 @@ const INSTALL_METHODS = {
     id: "script",
     label: "install.sh",
     command: "curl -fsSL https://gbam.dev/install.sh | bash",
-    badge: "macOS • Linux • Windows",
+    badge: "macOS • Windows",
   },
   npm: {
     id: "npm",
     label: "npm",
     command: "npm i -g gbam-dev",
-    badge: "Requires Node.js",
+    badge: "macOS • Windows · Requires Node.js",
   },
 } as const;
 

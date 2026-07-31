@@ -9,7 +9,7 @@ import { ModelCostTable } from "./_components/model-cost-table";
 export const metadata = {
   title: "Pricing — GBAM",
   description:
-    "Pay-as-you-go credit packs for the GBAM terminal AI assistant. No monthly subscriptions — buy credits once, they never expire.",
+    "Pay-as-you-go credit packs for the GBAM terminal AI assistant. No monthly subscriptions — buy credits that only expire after 6 months.",
 };
 
 export default function PricingPage() {

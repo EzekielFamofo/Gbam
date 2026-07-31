@@ -1,9 +1,7 @@
 {
   "name": "Gbam/main",
   "version": "1.0.0",
-  "workspaces": [
-    "packages/*"
-  ],
+  "workspaces": ["packages/*", "packages/cli-binaries/*"],
   "scripts": {
     "dev:web": "bun run web dev",
     "dev:cli": " bun run --watch packages/cli/src/index.tsx",

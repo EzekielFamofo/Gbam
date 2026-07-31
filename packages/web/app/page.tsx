@@ -107,7 +107,7 @@ export default function Home() {
                     Subscription vs. Pay-As-You-Go
                   </h2>
                   <p className="mt-3 text-muted-foreground">
-                    Most tools charge you 28,000/month whether you use them or not. With GBAM, you buy credits once, and they never expire. Use them today, next week, or next year—your balance is always yours.
+                    Most tools charge you 28,000/month whether you use them or not. With GBAM, you buy credits once, and they expire after 6 months. Upon first signing in, you recieve 100 free trial credits to test the assistant.
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary">

@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-
-# Exit immediately if a command exits with a non-zero status
 set -euo pipefail
 
 # --- Color Formatting ---
@@ -8,79 +6,65 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 echo -e "${CYAN}${BOLD}"
 echo "  ⚡ GBAM CLI Installer"
 echo "  The Terminal AI Assistant You Pay for Only When You Code."
 echo -e "${NC}\n"
 
-# --- 1. OS & Architecture Detection ---
+# --- 1. System Check ---
 OS="$(uname -s)"
-ARCH="$(uname -m)"
-
 case "${OS}" in
-    Linux*)  PLATFORM="Linux";;
     Darwin*) PLATFORM="macOS";;
-    *)       PLATFORM="UNKNOWN:${OS}";;
+    Linux*)  PLATFORM="Linux";;
+    *)       echo -e "${RED}install.sh supports macOS and Linux. On Windows, run: npm install -g gbam-dev${NC}"; exit 1;;
 esac
 
-echo -e "Detecting system... ${BOLD}${PLATFORM} (${ARCH})${NC}"
+echo -e "Detecting system... ${BOLD}${PLATFORM}${NC}"
 
-if [ "${PLATFORM}" = "UNKNOWN:${OS}" ]; then
-    echo -e "${RED}Error: Unsupported operating system ${OS}.${NC}"
-    exit 1
-fi
-
-# --- 2. Check for Package Manager / Runtime (Auto-install Bun if missing) ---
-HAS_NPM=false
+# --- 2. Runtime Detection & Fallback ---
 HAS_BUN=false
+HAS_NPM=false
 
 if command -v bun >/dev/null 2>&1; then
     HAS_BUN=true
 elif command -v npm >/dev/null 2>&1; then
     HAS_NPM=true
 else
-    echo -e "${CYAN}No Node.js or Bun detected. Auto-installing Bun runtime...${NC}"
+    echo -e "${CYAN}No JS runtime detected. Auto-installing Bun...${NC}"
     curl -fsSL https://bun.sh/install | bash
     
-    # Export Bun to the current script session's PATH
     export BUN_INSTALL="$HOME/.bun"
     export PATH="$BUN_INSTALL/bin:$PATH"
     
     if command -v bun >/dev/null 2>&1; then
         HAS_BUN=true
-        echo -e "${GREEN}✓ Bun installed successfully.${NC}"
     else
         echo -e "${RED}Error: Failed to auto-install Bun. Please install Node.js or Bun manually.${NC}"
         exit 1
     fi
 fi
 
-# --- 3. Execute Global Installation ---
+# --- 3. Install GBAM Globally ---
 echo -e "Installing ${CYAN}gbam-dev${NC} globally..."
 
 if [ "$HAS_BUN" = true ]; then
-    echo "Using Bun package manager..."
     bun install -g gbam-dev
 elif [ "$HAS_NPM" = true ]; then
-    echo "Using npm package manager..."
-    # Attempt standard npm install; fallback to sudo if permission denied
     if ! npm install -g gbam-dev 2>/dev/null; then
-        echo -e "${CYAN}Global npm install required elevated privileges. Retrying with sudo...${NC}"
+        echo -e "${CYAN}Global npm install requires elevated privileges. Retrying with sudo...${NC}"
         sudo npm install -g gbam-dev
     fi
 fi
 
-# --- 4. Verify Installation & Output Guidance ---
+# --- 4. Success Check ---
 echo ""
 if command -v gbam >/dev/null 2>&1; then
-    VERSION=$(gbam --version 2>/dev/null || echo "latest")
-    echo -e "${GREEN}${BOLD}✓ GBAM CLI installed successfully! (${VERSION})${NC}\n"
+    echo -e "${GREEN}${BOLD}✓ GBAM CLI installed successfully!${NC}\n"
     echo -e "Get started by running:"
     echo -e "  ${CYAN}gbam${NC}"
 else
-    echo -e "${GREEN}Installation complete!${NC}"
-    echo -e "Please restart your terminal or run: ${CYAN}source ~/.bashrc${NC} (or ${CYAN}source ~/.zshrc${NC})"
-    echo -e "Then run: ${CYAN}gbam${NC}"
+    echo -e "${GREEN}${BOLD}✓ GBAM CLI installed!${NC}"
+    echo -e "Please restart your terminal session, then run: ${CYAN}gbam${NC}"
 fi
