@@ -22,15 +22,10 @@
       "bin": {
         "gbam": "bin/gbam",
       },
-      "devDependencies": {
+      "dependencies": {
         "@ai-sdk/react": "^4.0.27",
-        "@gbam/server": "workspace:*",
-        "@gbam/shared": "workspace:*",
         "@opentui/core": "^0.4.2",
         "@opentui/react": "^0.4.2",
-        "@types/bun": "latest",
-        "@types/node": "latest",
-        "@types/react": "^19.2.17",
         "ai": "^7.0.26",
         "date-fns": "^4.4.0",
         "hono": "^4.12.27",
@@ -41,29 +36,6 @@
         "react-router": "^8.1.0",
         "zod": "^4.4.3",
       },
-      "optionalDependencies": {
-        "gbam-dev-darwin-arm64": "0.1.0",
-        "gbam-dev-darwin-x64": "0.1.0",
-        "gbam-dev-linux-arm64": "0.1.0",
-        "gbam-dev-linux-x64": "0.1.0",
-        "gbam-dev-win32-x64": "0.1.0",
-      },
-    },
-    "packages/cli-binaries/darwin-arm64": {
-      "name": "gbam-dev-darwin-arm64",
-      "version": "1.0.0",
-    },
-    "packages/cli-binaries/darwin-x64": {
-      "name": "gbam-dev-darwin-x64",
-      "version": "1.0.0",
-    },
-    "packages/cli-binaries/win32-arm64": {
-      "name": "gbam-dev-win32-arm64",
-      "version": "1.0.0",
-    },
-    "packages/cli-binaries/win32-x64": {
-      "name": "gbam-dev-win32-x64",
-      "version": "1.0.0",
     },
     "packages/database": {
       "name": "@gbam/database",
@@ -1061,14 +1033,6 @@
     "fuzzysort": ["fuzzysort@3.1.0", "", {}, "sha512-sR9BNCjBg6LNgwvxlBd0sBABvQitkLzoVY9MYYROQVX/FvfJ4Mai9LsGhDgd8qYdds0bY77VzYd5iuB+v5rwQQ=="],
 
     "gbam-dev": ["gbam-dev@workspace:packages/cli"],
-
-    "gbam-dev-darwin-arm64": ["gbam-dev-darwin-arm64@workspace:packages/cli-binaries/darwin-arm64"],
-
-    "gbam-dev-darwin-x64": ["gbam-dev-darwin-x64@workspace:packages/cli-binaries/darwin-x64"],
-
-    "gbam-dev-win32-arm64": ["gbam-dev-win32-arm64@workspace:packages/cli-binaries/win32-arm64"],
-
-    "gbam-dev-win32-x64": ["gbam-dev-win32-x64@workspace:packages/cli-binaries/win32-x64"],
 
     "generate-function": ["generate-function@2.3.1", "", { "dependencies": { "is-property": "^1.0.2" } }, "sha512-eeB5GfMNeevm/GRYq20ShmsaGcmI81kIX2K9XQx5miC8KdHaC6Jm0qQ8ZNeGOi7wYB8OsdxKs+Y2oVuTFuVwKQ=="],
 
