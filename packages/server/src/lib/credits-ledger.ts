@@ -150,7 +150,7 @@ async function consumeCreditsFifo(
 }
 
 export async function ensureCreditAccount(userId: string) {
-  return db.$transaction(async (tx) => ensureCreditAccountRecord(tx, userId));
+  return ensureCreditAccountRecord(db, userId);
 }
 
 export async function getAvailableCreditsBalance(userId: string) {
