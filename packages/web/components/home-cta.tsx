@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Loader2, Terminal } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -110,10 +110,17 @@ export function InstallCommandCard() {
 }
 
 export function DemoShowcase() {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+  };
 
   return (
     <div className="overflow-hidden rounded-[28px] border border-border bg-[#081019] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_30px_100px_rgba(0,0,0,0.55)]">
+      {/* Window Controls Header */}
       <div className="flex items-center justify-between border-b border-white/10 bg-black/40 px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="size-3 rounded-full bg-[#ff5f57]" />
@@ -128,20 +135,65 @@ export function DemoShowcase() {
         <div className="hidden w-[52px] md:block" />
       </div>
 
-      <div className="bg-[radial-gradient(circle_at_top,rgba(57,255,136,0.08),transparent_32%)]">
-        {imageFailed ? (
-          <img
-            src="/demo-placeholder.svg"
-            alt="GBAM Terminal and Web Sync Demo placeholder"
-            className="block aspect-[16/10] w-full object-cover"
-          />
+      {/* Media Canvas Container */}
+      <div className="relative aspect-[16/10] w-full bg-[radial-gradient(circle_at_top,rgba(57,255,136,0.08),transparent_32%)]">
+        {/* Loading Overlay */}
+        {isLoading && !hasError && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#081019]/90 backdrop-blur-sm">
+            <div className="relative flex items-center justify-center">
+              <div className="absolute -inset-4 rounded-full bg-primary/20 blur-lg animate-pulse" />
+              <Loader2 className="relative size-8 animate-spin text-primary" />
+            </div>
+            <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+              <Terminal className="size-3.5 text-primary animate-pulse" />
+              <span className="animate-pulse">Loading live terminal preview...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Pure React Fallback (Zero external assets required) */}
+        {hasError ? (
+          <div className="flex aspect-[16/10] w-full flex-col items-center justify-center gap-4 border border-white/5 bg-black/60 p-6 text-center">
+            <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4 shadow-[0_0_30px_rgba(57,255,136,0.15)]">
+              <Terminal className="size-10 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-mono text-sm font-semibold text-foreground sm:text-base">
+                GBAM Terminal & Web Sync
+              </h3>
+              <p className="mt-1 max-w-xs font-mono text-xs text-muted-foreground sm:max-w-sm">
+                Video playback failed to load. Ensure <code className="text-primary">DemoVideo.webm</code> or <code className="text-primary">DemoVideo.mp4</code> is inside your <code className="text-primary">public/</code> directory.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleRetry}
+              className="mt-1 border-primary/30 font-mono text-xs text-primary hover:bg-primary/10"
+            >
+              Retry Video
+            </Button>
+          </div>
         ) : (
-          <img
-            src="/demo.gif"
-            alt="GBAM Terminal and Web Sync Demo"
-            className="block aspect-[16/10] w-full object-cover"
-            onError={() => setImageFailed(true)}
-          />
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            onLoadedData={() => setIsLoading(false)}
+            onError={() => {
+              setIsLoading(false);
+              setHasError(true);
+            }}
+            className={`block aspect-[16/10] w-full object-cover transition-opacity duration-700 ${
+              isLoading ? "opacity-0" : "opacity-100"
+            }`}
+          >
+            <source src="/DemoVideo.webm" type="video/webm" />
+            <source src="/DemoVideo.mp4" type="video/mp4" />
+          </video>
         )}
       </div>
     </div>
