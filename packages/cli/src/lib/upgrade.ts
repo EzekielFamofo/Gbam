@@ -1,6 +1,6 @@
 import open from "open";
 import { apiClient } from "./api-client";
-import { getErrorMessage } from "./htttp-errors";
+import { getErrorMessage } from "./http-errors";
 
 export async function openUpgradeCheckout() {
     // Corrected to $post() with no query arguments needed

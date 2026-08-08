@@ -8,7 +8,7 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import { useToast } from "src/providers/toast";
 import { useDialog } from "src/providers/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getErrorMessage } from "src/lib/htttp-errors";
+import { getErrorMessage } from "src/lib/http-errors";
 import { useChat, type Message } from "src/hooks/use-chat";
 import {
   DEFAULT_CHAT_MODEL_ID,

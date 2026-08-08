@@ -2,7 +2,7 @@ import { TextAttributes } from "@opentui/core";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { apiClient } from "src/lib/api-client";
-import { getErrorMessage } from "src/lib/htttp-errors";
+import { getErrorMessage } from "src/lib/http-errors";
 import { useDialog } from "src/providers/dialog";
 import { useToast } from "src/providers/toast";
 import { DialogSearchList } from "../dialog-search-list";

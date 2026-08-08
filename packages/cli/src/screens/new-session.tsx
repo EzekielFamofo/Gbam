@@ -5,7 +5,7 @@ import { SessionShell } from "../components/session-shell";
 import z from "zod";
 import { useToast } from "src/providers/toast";
 import { apiClient } from "src/lib/api-client";
-import { getErrorMessage } from "src/lib/htttp-errors";
+import { getErrorMessage } from "src/lib/http-errors";
 import { Mode, modeSchema } from "@gbam/shared";
 // This component is going to be the default view anytime a new session is created 
 
