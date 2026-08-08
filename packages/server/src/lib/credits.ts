@@ -29,7 +29,7 @@ const NGN_PER_CREDIT_SALE_PRICE = 14;
 // What raw model spend converts to internally when charging credits for usage.
 // Deliberately lower than sale price — the ₦10.5 gap per credit is gross margin
 // (75%) before payment processor fees, infra, and support costs.
-const NGN_PER_CREDIT_COST_BASIS = 3.5;
+const NGN_PER_CREDIT_COST_BASIS = 7.0;
 
 function getTokenCounts(usage: LanguageModelUsage): TokenCounts {
     const inputTokens = usage.inputTokens;
