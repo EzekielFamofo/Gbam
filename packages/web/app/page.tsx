@@ -211,11 +211,11 @@ export default function Home() {
         <FAQSection />
       </main>
 
-      {/* FOOTER SECTION */}
+
       <footer className="border-t border-border bg-card/40 backdrop-blur">
         <div className="mx-auto max-w-6xl px-6 py-12 md:py-16">
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            {/* Column 1: Brand Info */}
+
             <div className="space-y-3">
               <span className="font-display text-xl font-bold tracking-tight text-primary">
                 GBAM
@@ -226,7 +226,7 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Column 2: Navigation */}
+
             <div>
               <h4 className="text-sm font-semibold text-foreground tracking-wider uppercase">
                 Product
