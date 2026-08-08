@@ -49,7 +49,7 @@ function extractErrorMessage(err: unknown): string {
 
 export async function performLogin(): Promise<{ token: string }> {
     const clerkFrontendApi = "https://clerk.gbam.dev";
-    const clientId = "591uvOvTs2nG59HL";
+    const clientId = "GHubOiwI6tR1pqpA";
 
     const apiUrl = process.env.API_URL ?? "https://api.gbam.dev";
     const webUrl = process.env.WEB_URL ?? "https://gbam.dev";
