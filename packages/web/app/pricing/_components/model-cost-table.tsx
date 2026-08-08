@@ -12,6 +12,19 @@ const TIER_STYLES: Record<CostTier, string> = {
 const PROVIDER_LABELS: Record<SupportedProvider, string> = {
   google: "Google",
   openai: "OpenAI",
+  anthropic: "Anthropic",
+  deepseek: "DeepSeek",
+  qwen: "Qwen",
+  stepfun: "StepFun",
+  "bytedance-seed": "ByteDance",
+  poolside: "Poolside",
+  "x-ai": "xAI",
+  "z-ai": "Zhipu AI",
+  moonshotai: "Moonshot AI",
+  minimax: "MiniMax",
+  inclusionai: "Inclusion AI",
+  sakana: "Sakana AI",
+  tencent: "Tencent",
 };
 
 export function ModelCostTable() {
@@ -21,7 +34,9 @@ export function ModelCostTable() {
     <div className="grid gap-4 md:grid-cols-2">
       {providers.map((provider) => (
         <div key={provider} className="rounded-2xl border border-border bg-background/60 p-5">
-          <p className="text-sm font-medium text-muted-foreground">{PROVIDER_LABELS[provider]}</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            {PROVIDER_LABELS[provider] || provider}
+          </p>
           <div className="mt-3 divide-y divide-border/60">
             {SUPPORTED_CHAT_MODELS.filter((m) => m.provider === provider).map((model) => (
               <div key={model.id} className="flex items-center justify-between gap-3 py-2.5">

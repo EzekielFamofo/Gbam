@@ -92,7 +92,7 @@ export const COMMANDS: Command[] = [
     },
         {
         name: "logout",
-        description: "Sign out with your browser",
+        description: "Sign out",
         value: "/logout",
         action: (ctx) => {
             clearAuth();
