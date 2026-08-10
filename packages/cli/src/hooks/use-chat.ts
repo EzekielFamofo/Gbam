@@ -17,7 +17,7 @@ import {
   type UserPermissionConfig
 } from "@gbam/shared";
 import { apiClient } from "../lib/api-client";
-import { getAuth } from "../lib/auth";
+import { getValidAuth } from "../lib/oauth";
 import { ensureRootAgentsFile } from "../lib/ensure-root-agents-file";
 import { getAgentsMdContext } from "../lib/local-tools";
 import { createPermissionGate } from "../lib/permissions-gate";
@@ -75,9 +75,9 @@ export function useChat(
   const transport = useMemo(() => {
     return new DefaultChatTransport<Message>({
       api: apiClient.chat.$url().toString(),
-      headers() {
-        const auth = getAuth();
-        return auth ? { Authorization: `Bearer ${auth.token}` } : new Headers();
+      async headers() {
+          const auth = await getValidAuth();
+          return auth ? { Authorization: `Bearer ${auth.token}` } : new Headers();
       },
       async prepareSendMessagesRequest({ messages }) {
         const bufferedMessages = compactConversationForSession(messages);

@@ -1,11 +1,21 @@
 import open from "open";
-import { saveAuth } from "./auth";
+import { clearAuth, getAuth, saveAuth, type AuthData } from "./auth";
 
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
+
+// Refresh proactively if the access token is within this window of expiry,
+// rather than waiting for the server to actually reject it.
+const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
 type OAuthState = {
     nonce: string;
     port: number;
+};
+
+type TokenResponse = {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
 };
 
 /**
@@ -15,7 +25,6 @@ function toBase64Url(input: Uint8Array | string | ArrayBuffer): string {
     if (typeof input === "string") {
         return Buffer.from(input, "utf-8").toString("base64url");
     }
-    // Consolidate both ArrayBuffer and Uint8Array cleanly for Buffer.from
     return Buffer.from(new Uint8Array(input)).toString("base64url");
 }
 
@@ -38,24 +47,114 @@ function decodeState(state: string): OAuthState {
     }
 }
 
-/**
- * Synchronous error parsing to replace the async HTTP `getErrorMessage` 
- * inside synchronous catch blocks.
- */
 function extractErrorMessage(err: unknown): string {
     if (err instanceof Error) return err.message;
     return String(err);
 }
 
-export async function performLogin(): Promise<{ token: string }> {
-    const clerkFrontendApi = "https://clerk.gbam.dev";
-    const clientId = "GHubOiwI6tR1pqpA";
+function computeExpiresAt(expiresIn: number | undefined): number | undefined {
+    if (typeof expiresIn !== "number" || !Number.isFinite(expiresIn)) return undefined;
+    return Date.now() + expiresIn * 1000;
+}
 
+const CLERK_FRONTEND_API = "https://clerk.gbam.dev";
+const CLERK_OAUTH_CLIENT_ID = "GHubOiwI6tR1pqpA";
+
+let inFlightRefresh: Promise<AuthData | null> | null = null;
+
+/**
+ * Exchanges the stored refresh token for a new access token, saving the
+ * result. Deduped against concurrent callers: refresh tokens are commonly
+ * rotated on use, so two simultaneous refresh attempts could otherwise
+ * race - the second one reusing an already-invalidated token and failing
+ * even though the first one succeeded.
+ */
+export async function refreshAuthToken(): Promise<AuthData | null> {
+    if (inFlightRefresh) return inFlightRefresh;
+
+    inFlightRefresh = performRefresh().finally(() => {
+        inFlightRefresh = null;
+    });
+
+    return inFlightRefresh;
+}
+
+async function performRefresh(): Promise<AuthData | null> {
+    const current = getAuth();
+    if (!current?.refreshToken) return null;
+
+    try {
+        const tokenRes = await fetch(`${CLERK_FRONTEND_API}/oauth/token`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+                grant_type: "refresh_token",
+                refresh_token: current.refreshToken,
+                client_id: CLERK_OAUTH_CLIENT_ID,
+            }),
+        });
+
+        if (!tokenRes.ok) {
+            // Refresh token itself is invalid, expired, or revoked - nothing
+            // recoverable locally. Clear auth so the next request prompts a
+            // clean /login instead of silently retrying a dead token forever.
+            clearAuth();
+            return null;
+        }
+
+        const tokenData = (await tokenRes.json()) as TokenResponse;
+
+        const nextAuth: AuthData = {
+            token: tokenData.access_token,
+            // Prefer a rotated refresh token if one came back; fall back to
+            // reusing the current one only if the response didn't include a
+            // new one at all.
+            refreshToken: tokenData.refresh_token ?? current.refreshToken,
+            expiresAt: computeExpiresAt(tokenData.expires_in),
+        };
+
+        saveAuth(nextAuth);
+        return nextAuth;
+    } catch {
+        // Network failure etc. - don't clear auth on a transient error,
+        // just fail this attempt and let the caller fall back to the
+        // existing (possibly still-valid) token.
+        return null;
+    }
+}
+
+/**
+ * What request-sending code should call instead of the raw getAuth(). Checks
+ * expiry and refreshes proactively first if the access token is expiring
+ * soon, so a long-lived CLI install stays signed in across days/weeks
+ * without the user re-running /login, as long as the refresh token (which
+ * per Clerk never expires on its own) hasn't been revoked.
+ */
+export async function getValidAuth(): Promise<AuthData | null> {
+    const current = getAuth();
+    if (!current) return null;
+
+    const isExpiringSoon =
+        typeof current.expiresAt === "number" &&
+        current.expiresAt - Date.now() < TOKEN_REFRESH_BUFFER_MS;
+
+    // No expiresAt means this token predates refresh support (saved by an
+    // older CLI version) - nothing to proactively refresh with. Use it as-is
+    // until the server's own 401 handling clears it.
+    if (!isExpiringSoon || !current.refreshToken) {
+        return current;
+    }
+
+    const refreshed = await refreshAuthToken();
+    // If refresh failed, fall back to the old token rather than blocking the
+    // request outright - if it's genuinely dead, the server's existing 401
+    // handling takes over from there.
+    return refreshed ?? current;
+}
+
+export async function performLogin(): Promise<{ token: string }> {
     const apiUrl = process.env.API_URL ?? "https://api.gbam.dev";
     const webUrl = process.env.WEB_URL ?? "https://gbam.dev";
-
-    if (!clerkFrontendApi) throw new Error("CLERK_FRONTEND_API not set");
-    if (!clientId) throw new Error("CLERK_OAUTH_CLIENT_ID not set");
 
     const nonce = crypto.randomUUID();
     const rawVerifier = crypto.getRandomValues(new Uint8Array(32));
@@ -103,7 +202,6 @@ export async function performLogin(): Promise<{ token: string }> {
                     return Response.redirect(`${webUrl}/cli-success?error=missing_params`, 302);
                 }
 
-                // Verify nonce from state payload
                 try {
                     const payload = decodeState(state);
                     if (payload.nonce !== nonce) {
@@ -120,15 +218,14 @@ export async function performLogin(): Promise<{ token: string }> {
                 try {
                     const redirectUri = `${apiUrl}/auth/callback`;
 
-                    // Exchange authorization code for Clerk token
-                    const tokenRes = await fetch(`${clerkFrontendApi}/oauth/token`, {
+                    const tokenRes = await fetch(`${CLERK_FRONTEND_API}/oauth/token`, {
                         method: "POST",
                         headers: { "Content-Type": "application/x-www-form-urlencoded" },
                         body: new URLSearchParams({
                             grant_type: "authorization_code",
                             code,
                             redirect_uri: redirectUri,
-                            client_id: clientId,
+                            client_id: CLERK_OAUTH_CLIENT_ID,
                             code_verifier: codeVerifier,
                         }),
                     });
@@ -138,10 +235,14 @@ export async function performLogin(): Promise<{ token: string }> {
                         throw new Error(details || "Failed to exchange authorization code");
                     }
 
-                    const tokenData = (await tokenRes.json()) as { access_token: string };
+                    const tokenData = (await tokenRes.json()) as TokenResponse;
 
                     settled = true;
-                    saveAuth({ token: tokenData.access_token });
+                    saveAuth({
+                        token: tokenData.access_token,
+                        refreshToken: tokenData.refresh_token,
+                        expiresAt: computeExpiresAt(tokenData.expires_in),
+                    });
                     resolve({ token: tokenData.access_token });
 
                     cleanupAndStop();

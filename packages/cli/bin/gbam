@@ -1,15 +1,14 @@
 #!/usr/bin/env bun
-import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 
-// 1. Safely load the local .env only if it exists (local development)
 const localEnvPath = path.resolve(import.meta.dirname, "../../../.env");
 if (fs.existsSync(localEnvPath)) {
-    dotenv.config({
-        path: localEnvPath,
-        quiet: true,  
-    });
+    try {
+        const { default: dotenv } = await import("dotenv");
+        dotenv.config({ path: localEnvPath, quiet: true });
+    } catch {
+    }
 }
 
 // 2. Locate the compiled production bundle and the raw source file
