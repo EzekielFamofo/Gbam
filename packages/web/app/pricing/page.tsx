@@ -48,25 +48,6 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="border-b border-border">
-          <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
-            <div className="mx-auto max-w-3xl text-center">
-              <p className="text-sm font-medium text-primary">MODEL COST TIERS</p>
-              <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight md:text-4xl">
-                Every model costs a different number of credits.
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                Cheaper models stretch your credits further; more capable models use more per exchange.
-                Switch models anytime — your credit balance is shared across all of them.
-              </p>
-            </div>
-
-            <div className="mt-10">
-              <ModelCostTable />
-            </div>
-          </div>
-        </section>
-
         <section>
           <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
             <div className="rounded-3xl border border-border bg-card/70 p-8 text-center shadow-[0_18px_70px_rgba(0,0,0,0.22)] backdrop-blur md:p-12">

@@ -1,7 +1,8 @@
 import {
     SUPPORTED_CHAT_MODELS,
     findSupportedChatModel,
-    type ModelPricing
+    convertNgnCostToCredits,
+    type ModelPricing,
 } from "@gbam/shared";
 import type { LanguageModelUsage } from "ai";
 
@@ -21,15 +22,6 @@ type TokenCounts = {
 }
 
 const TOKENS_PER_MILLION = 1_000_000;
-
-// What a customer pays when buying credits: 1 credit = $0.01 = ₦14.
-// Used for Polar product pricing / anything shown to the user — not for cost math below.
-const NGN_PER_CREDIT_SALE_PRICE = 14;
-
-// What raw model spend converts to internally when charging credits for usage.
-// Deliberately lower than sale price — the ₦10.5 gap per credit is gross margin
-// (75%) before payment processor fees, infra, and support costs.
-const NGN_PER_CREDIT_COST_BASIS = 7.0;
 
 function getTokenCounts(usage: LanguageModelUsage): TokenCounts {
     const inputTokens = usage.inputTokens;
@@ -74,19 +66,11 @@ function estimateCostNgN({ inputTokens, outputTokens}: TokenCounts, pricing: Mod
     );
 };
 
-function convertNgNToCredits(estimateCostNgN: number) {
-    if (estimateCostNgN <= 0) {
-        return 0;
-    }
-
-    return Math.max(1, Math.ceil(estimateCostNgN / NGN_PER_CREDIT_COST_BASIS));
-};
-
 export function CalculateCreditsForUsage({ provider, model, usage, }: CalculateCreditsForUsageParams): BillableUsage {
     const tokenCounts = getTokenCounts(usage);
     const pricing = getModelPricing(provider, model);
     const estimatedCostNgN = estimateCostNgN(tokenCounts, pricing);
-    const credits = convertNgNToCredits(estimatedCostNgN); 
+    const credits = convertNgnCostToCredits(estimatedCostNgN);
 
     return {
         credits,

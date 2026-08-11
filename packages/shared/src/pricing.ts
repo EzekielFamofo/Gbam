@@ -75,3 +75,12 @@ export function getSavingsPercent(
   if (baselineRate === 0) return 0;
   return Math.round(((baselineRate - rate) / baselineRate) * 100);
 }
+
+export const NGN_PER_CREDIT_COST_BASIS = 3.5;
+
+export const NGN_PER_CREDIT_SALE_PRICE = 14;
+
+export function convertNgnCostToCredits(costNgn: number): number {
+    if (costNgn <= 0) return 0;
+    return Math.max(1, Math.ceil(costNgn / NGN_PER_CREDIT_COST_BASIS));
+}

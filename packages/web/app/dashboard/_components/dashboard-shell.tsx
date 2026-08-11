@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import Link from "next/link";
 import { SignIn, UserButton } from "@clerk/nextjs";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { ArrowLeft, BarChart3, Gauge, Layers3, ListChecks, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BarChart3, Gauge, Layers3, ListChecks, ShieldCheck, CreditCard, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,8 @@ const navItems: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: Gauge },
   { href: "/dashboard/sessions", label: "Sessions", icon: ListChecks },
   { href: "/dashboard/usage", label: "Usage", icon: BarChart3 },
-  { href: "/dashboard/limits", label: "Limits", icon: Layers3,},
+  { href: "/dashboard/limits", label: "Limits", icon: Layers3 },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
   { href: "/dashboard/permissions", label: "Permissions", icon: ShieldCheck },
 ];
 
@@ -54,7 +55,7 @@ export async function DashboardShell({
                 Use the same account you connect to the GBAM CLI so your sessions, credits, and billing stay in sync.
               </p>
             </div>
-            <SignIn forceRedirectUrl="/dashboard" fallbackRedirectUrl="/dashboard" />
+            <SignIn forceRedirectUrl="/dashboard" fallbackRedirectUrl="/dashboard" routing="hash"/>
           </div>
         </div>
       </div>
@@ -168,7 +169,7 @@ export async function DashboardShell({
                   </div>
 
                   <div className="flex items-center gap-2.5">
-                    <Link href="/pricing">
+                    <Link href="/dashboard/billing">
                       <Button size="sm" className="h-8 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90">
                         Buy credits
                       </Button>

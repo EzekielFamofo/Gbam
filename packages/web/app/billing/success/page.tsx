@@ -46,11 +46,11 @@ export default async function BillingSuccessPage({ searchParams }: PageProps) {
         <p className="text-gray-500 mt-4 mb-8 text-sm leading-relaxed">
           {isCliFlow
             ? "You can return to the GBAM terminal now. If your balance doesn’t update immediately, refresh."
-            : "You can head back to your dashboard to monitor your updated balance and recent transactions."}
+            : "You can return to Billing to monitor your updated balance and recent transactions."}
         </p>
 
         <Link
-          href={isCliFlow ? "/dashboard/usage" : "/dashboard"}
+           href={isCliFlow ? "/dashboard/usage" : "/dashboard/billing"}
           className="inline-flex items-center justify-center w-full px-6 py-3 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-500 transition-colors focus:ring-4 focus:ring-green-500/30 outline-none"
         >
           {isCliFlow ? "Open Usage Dashboard" : "Return to Dashboard"}

@@ -2,6 +2,7 @@ export {
     SUPPORTED_CHAT_MODELS,
     DEFAULT_CHAT_MODEL_ID,
     findSupportedChatModel,
+    COST_TIER_OUTPUT_NGN_BANDS,
     type ModelPricing,
     type SupportedProvider,
     type SupportedChatModel,

@@ -46,6 +46,15 @@ export default function DocsOverviewPage() {
             <li>Public docs and onboarding</li>
           </ul>
         </SectionCard>
+        <SectionCard>
+        <p className="font-display text-base font-semibold">Acknowledgments</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          GBAM builds upon design patterns popularized by open-source terminal AI coding
+          tools, including OpenCode, extending them with local token tracking, seamless
+          session management, and custom CLI workflows. Portions of the CLI's command
+          handling are directly derived from OpenCode under the MIT License.
+        </p>
+      </SectionCard>
       </div>
     </section>
   );

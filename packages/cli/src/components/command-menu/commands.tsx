@@ -5,8 +5,6 @@ import { performLogin } from "src/lib/oauth";
 import { clearAuth } from "src/lib/auth";
 import { runUndoCommand } from "src/lib/undo-stack";
 import open from "open";
-// defines the commands shown and their action, name and description are used in index.tsx
-// Portions of this file are derived from opencode (c) 2025 opencode under the MIT License.
 
 const WEB_URL = process.env.WEB_URL || "https://gbam.dev";
 
