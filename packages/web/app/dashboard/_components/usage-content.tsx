@@ -11,7 +11,7 @@ export function DashboardUsageContent() {
     <div className="space-y-6">
       <DashboardPageHeader
         title="Usage"
-        description="Review recent credit consumption, transaction activity, and lightweight usage trends."
+        description="Review recent credit consumption and lightweight usage trends."
       />
       <UsageDashboard transactions={dashboard.transactions} />
     </div>

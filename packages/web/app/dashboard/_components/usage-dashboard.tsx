@@ -30,7 +30,6 @@ function getCutoffDate(range: RangeValue) {
 
 function getTransactionTitle(transaction: DashboardTransactionItem) {
   if (transaction.description) return transaction.description;
-  if (transaction.type === "purchase") return "Credit purchase";
   if (transaction.type === "adjustment") return "Balance adjustment";
   if (transaction.type === "sync") return "Balance sync";
   if (transaction.type === "trial") return "Free trial credits";
@@ -77,6 +76,15 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
   const [selectedSessionId, setSelectedSessionId] = useState<string>("all");
   const [query, setQuery] = useState("");
 
+  // Purchases have their own dedicated view on the Billing page now - keep
+  // this page focused on usage/consumption activity. Filtered once here so
+  // every derived value below (chart, breakdown, table, session dropdown)
+  // consistently excludes them, rather than re-filtering in several places.
+  const nonPurchaseTransactions = useMemo(
+    () => transactions.filter((transaction) => transaction.type !== "purchase"),
+    [transactions],
+  );
+
   // Map session IDs to their session objects for quick lookup
   const sessionMap = useMemo(() => {
     return new Map(sessions.map((s) => [s.id, s]));
@@ -85,7 +93,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
   // Extract unique sessions for dropdown filter
   const availableSessions = useMemo(() => {
     const sessionIds = Array.from(
-      new Set(transactions.map((t) => t.sessionId).filter(Boolean))
+      new Set(nonPurchaseTransactions.map((t) => t.sessionId).filter(Boolean))
     ) as string[];
     return sessionIds.map((id) => {
       const session = sessionMap.get(id);
@@ -94,7 +102,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
         title: session?.title ?? `Session ${id.slice(0, 8)}...`,
       };
     });
-  }, [transactions, sessionMap]);
+  }, [nonPurchaseTransactions, sessionMap]);
 
   // Filtered Transactions for Chart & History Table
   const { filteredTransactions, totalUsage, dailySeries, breakdown, maxDailyValue } =
@@ -102,7 +110,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
       const cutoff = getCutoffDate(range);
       const normalizedQuery = query.trim().toLowerCase();
 
-      const filteredByRange = transactions.filter((transaction) => {
+      const filteredByRange = nonPurchaseTransactions.filter((transaction) => {
         return new Date(transaction.createdAt).getTime() >= cutoff;
       });
 
@@ -179,7 +187,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
         maxDailyValue,
         breakdown,
       };
-    }, [query, range, selectedSessionId, transactions]);
+    }, [query, range, selectedSessionId, nonPurchaseTransactions]);
 
   return (
     <div className="space-y-6">
@@ -367,8 +375,7 @@ export function UsageDashboard({ transactions, sessions = [] }: Props) {
                   {filteredTransactions.map((transaction) => {
                     const isNegative = transaction.creditsDelta < 0;
                     const showExpiry = Boolean(
-                      transaction.expiresAt &&
-                        (transaction.type === "purchase" || transaction.type === "trial")
+                      transaction.expiresAt && transaction.type === "trial"
                     );
 
                     return (

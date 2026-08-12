@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import {
   ArrowDownToLine,
-  ArrowUpRight,
   Clock3,
   CreditCard,
   History,
@@ -10,15 +9,13 @@ import {
 } from "lucide-react";
 import {
   CREDIT_EXPIRY_MONTHS,
-  CREDIT_PACKS,
-  getTotalCredits,
   type DashboardTransactionItem,
 } from "@gbam/shared";
 
 import { DashboardShell } from "../_components/dashboard-shell";
-import { PricingCard } from "@/app/pricing/_components/pricing-card";
 import { DashboardPageHeader, DashboardUnavailable } from "../_components/dashboard-header";
 import { getDashboardData } from "@/lib/dashboard/get-dashboard";
+import { CompactCreditPacks } from "../_components/compact-pricing-card";
 
 
 const nairaFormatter = new Intl.NumberFormat("en-NG", {
@@ -296,19 +293,10 @@ export default async function DashboardBillingPage() {
 
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             Buy credits once and use them across your GBAM CLI sessions.
-            Credits expire after {CREDIT_EXPIRY_MONTHS} months.
           </p>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-3">
-          {CREDIT_PACKS.map((pack) => (
-            <PricingCard
-              key={pack.id}
-              pack={pack}
-              maxTotal={Math.max(...CREDIT_PACKS.map(getTotalCredits))}
-            />
-          ))}
-        </div>
+        <CompactCreditPacks />
       </section>
 
       {/* Expiration information */}
@@ -343,7 +331,7 @@ export default async function DashboardBillingPage() {
             </div>
 
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Recent purchases and credit balance activity.
+              Your recent credit pack purchases.
             </p>
           </div>
 
@@ -356,8 +344,8 @@ export default async function DashboardBillingPage() {
         </div>
 
         <div className="overflow-hidden rounded-xl border border-border/60 bg-card/50">
-          {transactions.length > 0 ? (
-            transactions.slice(0, 10).map((transaction) => (
+          {purchaseTransactions.length > 0 ? (
+            purchaseTransactions.slice(0, 10).map((transaction) => (
               <TransactionRow
                 key={transaction.id}
                 transaction={transaction}
@@ -368,11 +356,11 @@ export default async function DashboardBillingPage() {
               <History className="mx-auto size-6 text-muted-foreground/50" />
 
               <p className="mt-3 text-sm font-medium">
-                No billing activity yet
+                No purchases yet
               </p>
 
               <p className="mt-1 text-xs text-muted-foreground">
-                Your purchases and credit activity will appear here.
+                Your credit pack purchases will appear here.
               </p>
             </div>
           )}
