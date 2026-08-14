@@ -81,8 +81,8 @@ export const SUPPORTED_CHAT_MODELS = [
         id: "deepseek/deepseek-v4-flash-0731",
         provider: "deepseek",
         pricing: {
-            inputNgNPerMillionTokens: 112,
-            outputNgNPerMillionTokens: 252,
+            inputNgNPerMillionTokens: 196,
+            outputNgNPerMillionTokens: 392,
         },
         costTier: "$",
         supportsThinking: true,
@@ -112,7 +112,7 @@ export const SUPPORTED_CHAT_MODELS = [
         provider: "openai",
         pricing: {
             inputNgNPerMillionTokens: 70,
-            outputNgNPerMillionTokens: 280,
+            outputNgNPerMillionTokens: 560,
         },
         costTier: "$",
         supportsThinking: true,
@@ -213,8 +213,8 @@ export const SUPPORTED_CHAT_MODELS = [
         id: "google/gemini-3.6-flash",
         provider: "google",
         pricing: {
-            inputNgNPerMillionTokens: 2100,
-            outputNgNPerMillionTokens: 10500,
+            inputNgNPerMillionTokens: 1050,
+            outputNgNPerMillionTokens: 5250,
         },
         costTier: "$$",
         supportsThinking: true,
