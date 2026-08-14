@@ -302,27 +302,7 @@ export const SUPPORTED_CHAT_MODELS = [
         supportsThinking: true,
     },
     {
-        id: "openai/gpt-5-chat",
-        provider: "openai",
-        pricing: {
-            inputNgNPerMillionTokens: 1750,
-            outputNgNPerMillionTokens: 14000,
-        },
-        costTier: "$$$",
-        supportsThinking: true,
-    },
-    {
-        id: "openai/gpt-5-codex",
-        provider: "openai",
-        pricing: {
-            inputNgNPerMillionTokens: 1750,
-            outputNgNPerMillionTokens: 14000,
-        },
-        costTier: "$$$",
-        supportsThinking: true,
-    },
-    {
-        id: "openai/gpt-5.3-codex",
+        id: "openai/gpt-5.2",
         provider: "openai",
         pricing: {
             inputNgNPerMillionTokens: 2450,
@@ -332,17 +312,7 @@ export const SUPPORTED_CHAT_MODELS = [
         supportsThinking: true,
     },
     {
-        id: "openai/gpt-5.3-chat",
-        provider: "openai",
-        pricing: {
-            inputNgNPerMillionTokens: 2450,
-            outputNgNPerMillionTokens: 19600,
-        },
-        costTier: "$$$",
-        supportsThinking: true,
-    },
-    {
-        id: "openai/gpt-5.2-chat",
+        id: "openai/gpt-5.3",
         provider: "openai",
         pricing: {
             inputNgNPerMillionTokens: 2450,
@@ -356,6 +326,16 @@ export const SUPPORTED_CHAT_MODELS = [
         provider: "openai",
         pricing: {
             inputNgNPerMillionTokens: 3500,
+            outputNgNPerMillionTokens: 21000,
+        },
+        costTier: "$$$",
+        supportsThinking: true,
+    },
+    {
+        id: "anthropic/claude-sonnet-4.5",
+        provider: "anthropic",
+        pricing: {
+            inputNgNPerMillionTokens: 4200,
             outputNgNPerMillionTokens: 21000,
         },
         costTier: "$$$",
@@ -390,6 +370,16 @@ export const SUPPORTED_CHAT_MODELS = [
         },
         costTier: "$$$",
         supportsThinking: true,
+    },
+    {
+        id: "minimax/minimax-01",
+        provider: "minimax",
+        pricing: {
+            inputNgNPerMillionTokens: 2800,
+            outputNgNPerMillionTokens: 15400,
+        },
+        costTier: "$$$",
+        supportsThinking: false,
     },
 
     // ── $$$$ — Output >= $25 / 1M ────────────────────────────────────

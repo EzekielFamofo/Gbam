@@ -4,6 +4,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+  "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "ai": "^7.0.26",
     "zod": "^4.4.3"
