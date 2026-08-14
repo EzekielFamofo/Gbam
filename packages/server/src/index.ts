@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
+import cron from "node-cron";
 
 // Route imports
 import auth from "./routes/auth";
@@ -14,6 +15,10 @@ import dashboardLimits from "./routes/dashboard-limits";
 import dashboardPermissions from "./routes/dashboard-permissions"; 
 import permissions from "./routes/permissions";
 import ExpiredCreditsSweep from "./routes/internal-credits-expiry";
+import ModelPricesSync from "./routes/internal-sync-models";
+
+// Service imports (assuming you extracted the check logic into a helper file)
+import { checkPriceDrift } from "./services/drift-check";
 
 // Middleware imports
 import { requireAuth } from "./middleware/require-auth";
@@ -78,12 +83,23 @@ const routes = app
     .route("/dashboard-limits", dashboardLimits)
     .route("/dashboard-permissions", dashboardPermissions) 
     .route("/permissions", permissions)
-    .route("/internal/credit-expiry", ExpiredCreditsSweep);
+    .route("/internal/credit-expiry", ExpiredCreditsSweep)
+    .route("/internal/sync-models", ModelPricesSync);
+
 export type AppType = typeof routes;
 
 // Export underlying lib models and execution helpers for monorepo consumption
 export * from "./lib/models";
 
+
+cron.schedule("0 0 * * *", async () => {
+    console.log("[CRON] Executing daily OpenRouter price drift check...");
+    try {
+        await checkPriceDrift();
+    } catch (error) {
+        console.error("[CRON ERROR] Daily price drift check failed:", error);
+    }
+});
 
 const port = Number(process.env.PORT) || 3001;
 
