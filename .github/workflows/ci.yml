@@ -8,6 +8,8 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://user:password@localhost:5432/gbam_ci"
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
