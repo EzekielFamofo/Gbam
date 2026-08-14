@@ -1,4 +1,4 @@
-import { NormalizedTokenUsage } from '../types/tokens';
+import type { NormalizedTokenUsage } from '../types/tokens';
 
 export function parseTokenUsage(payload: any): NormalizedTokenUsage {
   if (!payload || typeof payload !== 'object') {

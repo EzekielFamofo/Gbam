@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { encode } from "zod";
 
 const app = new Hono().get("/callback", (c) => {
     const code = c.req.query("code");
@@ -19,11 +18,15 @@ const app = new Hono().get("/callback", (c) => {
     try {
         const [encoded] = state.split(".");
 
+        if (!encoded) {
+            throw new Error("Invalid state encoding");
+        }
+
         const payload = JSON.parse(Buffer.from(encoded, "base64url").toString());
         const port = payload.port;
 
         if (!port || typeof port !== "number") {
-            throw new Error("Invalid part in state");
+            throw new Error("Invalid port in state");
         }
 
         const redirectUrl = `http://localhost:${port}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;

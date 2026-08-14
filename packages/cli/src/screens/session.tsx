@@ -187,7 +187,7 @@ function SessionChat({
         });
       }}
     >
-      {messages.map((message) => (
+      {messages.map((message: Message) => (
         <TranscriptMessage
           key={message.id}
           message={message}
@@ -260,7 +260,7 @@ export function Session() {
         }
 
         const updated = await res.json();
-        setSession((prev) => (prev ? { ...prev, title: updated.title } : null));
+        setSession((prev: SessionData | null) => (prev ? { ...prev, title: updated.title } : null));
 
         toast.show({
           variant: "info",
@@ -285,7 +285,7 @@ export function Session() {
       key={session.id}
       session={session}
       initialPrompt={prefetched?.initialPrompt}
-      onRenameSession ={handleRenameSession}
+      onRenameSession={handleRenameSession}
     />
   );
 }

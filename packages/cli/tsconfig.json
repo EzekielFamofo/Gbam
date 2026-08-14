@@ -2,10 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
       "jsx": "react-jsx", 
-      "ignoreDeprecations": "6.0",
-      "baseUrl": ".",
       "paths": {
-        "@gbam/server": ["../server/src/index.ts"]
+        "@gbam/server": ["../server/src/index.ts"],
+        "src/*": ["./src/*"]
     }
-  }  
+  },
+    "include": ["src/**/*"]  
 } 

@@ -2,6 +2,10 @@ let cachedRate: { value: number; timestamp: number } | null = null;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const DEFAULT_FALLBACK_RATE = 1400;
 
+type ErApiResponse = {
+    rates?: Record<string, number>;
+};
+
 /**
  * Fetches the live USD to NGN exchange rate from open.er-api.com.
  * Caches the result in memory for 12 hours.
@@ -20,7 +24,7 @@ export async function getUsdToNgnRate(): Promise<number> {
             throw new Error(`API responded with HTTP ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as ErApiResponse;
         const liveNgnRate = data?.rates?.NGN;
 
         if (typeof liveNgnRate === "number" && liveNgnRate > 0) {

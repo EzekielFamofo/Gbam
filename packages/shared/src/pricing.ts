@@ -7,6 +7,7 @@ export type CreditPackId = z.infer<typeof creditPackIdSchema>;
 export const FREE_TRIAL_CREDITS = 100;
 export const CREDIT_EXPIRY_MONTHS = 6;
 
+
 export type CreditPack = {
   id: CreditPackId;
   label: string;
@@ -49,6 +50,7 @@ export const CREDIT_PACKS: CreditPack[] = [
   },
 ];
 
+
 export function getCreditPackById(packId: CreditPackId): CreditPack | undefined {
   return CREDIT_PACKS.find((pack) => pack.id === packId);
 }
@@ -68,7 +70,7 @@ export function getEffectiveNgnPerCredit(pack: CreditPack): number {
 // that could drift from the pack data above.
 export function getSavingsPercent(
   pack: CreditPack,
-  baseline: CreditPack = CREDIT_PACKS[0]
+  baseline: CreditPack = CREDIT_PACKS[0]!
 ): number {
   const baselineRate = getEffectiveNgnPerCredit(baseline);
   const rate = getEffectiveNgnPerCredit(pack);

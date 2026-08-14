@@ -8,7 +8,7 @@ import {
 } from "@gbam/shared";
 import {
   convertToModelMessages,
-  InferUITools,
+  type InferUITools,
   type LanguageModelUsage,
   streamText,
   type UIMessage,

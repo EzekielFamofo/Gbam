@@ -8,6 +8,18 @@ export type DriftAlert = {
     remoteNgNPerMillionTokens: number;
 };
 
+type OpenRouterModel = {
+    id: string;
+    pricing?: {
+        prompt?: string;
+        completion?: string;
+    };
+};
+
+type OpenRouterModelsResponse = {
+    data: OpenRouterModel[];
+};
+
 export async function checkPriceDrift(): Promise<DriftAlert[]> {
     try {
         const res = await fetch("https://openrouter.ai/api/v1/models");
@@ -15,12 +27,12 @@ export async function checkPriceDrift(): Promise<DriftAlert[]> {
             throw new Error(`OpenRouter API error: ${res.status} ${res.statusText}`);
         }
 
-        const { data } = await res.json();
+        const { data } = (await res.json()) as OpenRouterModelsResponse;
         const driftAlerts: DriftAlert[] = [];
         const usdToNgnRate = await getUsdToNgnRate();
 
         for (const localModel of SUPPORTED_CHAT_MODELS) {
-            const remoteModel = data.find((m: { id: string }) => m.id === localModel.id);
+            const remoteModel = data.find((m) => m.id === localModel.id);
 
             if (!remoteModel) {
                 console.warn(`[PRICE DRIFT WARNING] Local model "${localModel.id}" not found on OpenRouter.`);

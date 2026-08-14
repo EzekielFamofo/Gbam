@@ -8,6 +8,7 @@
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
+    
 
     // Bundler mode
     "moduleResolution": "bundler",
@@ -27,9 +28,10 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
     "paths": {
-      "@gbam/database": ["./packages/database/src"],
+      "src/*": ["./packages/cli/src/*"],
+      "@gbam/database": ["./packages/database/src/*"],
       "@gbam/database/*": ["./packages/database/src/*"],
-      "@gbam/shared": ["./packages/shared/src"],
+      "@gbam/shared": ["./packages/shared/src/*"],
       "@gbam/shared/*": ["./packages/shared/src/*"]
     }
   }

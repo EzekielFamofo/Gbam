@@ -76,7 +76,7 @@ function Dialog({currentDialog, close }: DialogProps){
 
     return ( // the actual appereance of the dialog component
         <box position="absolute" left={0} top={0} width={dimensions.width} height={dimensions.height} justifyContent="center" alignItems="center" backgroundColor={RGBA.fromInts(0,0, 0, 150)} zIndex={100} onMouseDown={() => close()}>
-            <box width={Math.min(60, dimensions.width - 4)} height="auto" backgroundColor="#1A1A24" paddingX={4} paddingY={1} flexDirection="column" gap={1} onMouseDown={(e) => e.stopPropagation()}>
+            <box width={Math.min(60, dimensions.width - 4)} height="auto" backgroundColor="#1A1A24" paddingX={4} paddingY={1} flexDirection="column" gap={1} onMouseDown={(e: any) => e.stopPropagation()}>
                 <box paddingBottom={1} flexDirection="row" alignItems="center" justifyContent="space-between">
                     <text attributes={TextAttributes.BOLD}>{title}</text>
                     <text attributes={TextAttributes.DIM} onMouseDown={() => close()} >esc</text>

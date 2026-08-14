@@ -136,29 +136,25 @@ export const MODEL_PROVIDER_OPTIONS: Partial<
         },
     },
 
-    "openai/gpt-5-chat": {},
-
-    "openai/gpt-5-codex": {
+    "openai/gpt-5.2": {
         openrouter: {
             reasoning: { effort: "high" },
         },
     },
 
-    "openai/gpt-5.3-codex": {
+    "openai/gpt-5.3": {
         openrouter: {
             reasoning: { effort: "high" },
         },
     },
-
-    "openai/gpt-5.3-chat": {
-        openrouter: {
-            reasoning: { effort: "high" },
-        },
-    },
-
-    "openai/gpt-5.2-chat": {},
 
     "openai/gpt-5.4": {
+        openrouter: {
+            reasoning: { effort: "high" },
+        },
+    },
+
+    "anthropic/claude-sonnet-4.5": {
         openrouter: {
             reasoning: { effort: "high" },
         },
@@ -181,6 +177,8 @@ export const MODEL_PROVIDER_OPTIONS: Partial<
             reasoning: { effort: "high" },
         },
     },
+
+    "minimax/minimax-01": {},
 
     // ── $$$$ ─────────────────────────────────────────────────────────
     "anthropic/claude-opus-4.6": {
@@ -251,15 +249,6 @@ const openrouter = createOpenRouter({
 export function resolveModel(
     model: SupportedChatModel,
 ): ResolvedModel {
-    /**
-     * Supported model IDs intentionally match OpenRouter model slugs.
-     *
-     * This removes the possibility of:
-     *
-     * SUPPORTED_CHAT_MODELS ID
-     *          !==
-     * OPENROUTER_MODEL_SLUGS ID
-     */
     const slug = model.id;
 
     return {
